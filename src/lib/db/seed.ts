@@ -6,21 +6,23 @@ interface HazardSeed {
   name: string;
   type: "biological" | "chemical" | "physical" | "allergen";
   description: string;
-  severity: "low" | "medium" | "high";
-  likelihood: "low" | "medium" | "high";
+  severity: string; // "1"=Negligible, "2"=Minor, "3"=Major, "4"=Critical
+  likelihood: string; // "1"=Rare, "2"=Unlikely, "3"=Likely, "4"=Almost Certain
   sourceCategory: string;
   applicableStepCategories: string[];
 }
 
 const HAZARD_SEEDS: HazardSeed[] = [
   // ─── Biological ─────────────────────────────────────────────
+  // Severity: 4=Critical (life-threatening), 3=Major (hospitalization), 2=Minor, 1=Negligible
+  // Likelihood: 4=Almost Certain, 3=Likely, 2=Unlikely, 1=Rare
   {
     name: "Salmonella spp.",
     type: "biological",
     description:
       "Gram-negative pathogenic bacteria commonly found in soil, water, and animal intestinal tracts. Can cause salmonellosis with symptoms of diarrhea, fever, and cramping.",
-    severity: "high",
-    likelihood: "medium",
+    severity: "4",  // Critical — can cause serious illness, outbreaks
+    likelihood: "3", // Likely — common in root vegetable supply chain
     sourceCategory: "soil",
     applicableStepCategories: [
       "receiving",
@@ -34,8 +36,8 @@ const HAZARD_SEEDS: HazardSeed[] = [
     type: "biological",
     description:
       "Gram-positive pathogenic bacteria ubiquitous in soil and water. Unique ability to grow at refrigeration temperatures (0-4°C). Can cause listeriosis, particularly dangerous for pregnant women, elderly, and immunocompromised.",
-    severity: "high",
-    likelihood: "medium",
+    severity: "4",  // Critical — high mortality rate in vulnerable populations
+    likelihood: "3", // Likely — ubiquitous in environment, grows at fridge temps
     sourceCategory: "environment",
     applicableStepCategories: [
       "receiving",
@@ -50,8 +52,8 @@ const HAZARD_SEEDS: HazardSeed[] = [
     type: "biological",
     description:
       "Shiga toxin-producing E. coli (STEC). Found in soil, manure, and irrigation water. Can cause hemorrhagic colitis and hemolytic uremic syndrome (HUS).",
-    severity: "high",
-    likelihood: "medium",
+    severity: "4",  // Critical — can cause HUS, life-threatening
+    likelihood: "2", // Unlikely — less common than Salmonella in carrots
     sourceCategory: "soil",
     applicableStepCategories: ["receiving", "processing"],
   },
@@ -60,8 +62,8 @@ const HAZARD_SEEDS: HazardSeed[] = [
     type: "biological",
     description:
       "Spore-forming anaerobic bacteria found in soil. Produces botulinum toxin. Relevant for modified atmosphere packaging (MAP) where anaerobic conditions may develop.",
-    severity: "high",
-    likelihood: "low",
+    severity: "4",  // Critical — botulism is life-threatening
+    likelihood: "1", // Rare — spores need anaerobic conditions
     sourceCategory: "soil",
     applicableStepCategories: ["receiving", "packaging"],
   },
@@ -70,8 +72,8 @@ const HAZARD_SEEDS: HazardSeed[] = [
     type: "biological",
     description:
       "Protozoan parasite found in water supplies and irrigation water. Resistant to chlorine disinfection at standard concentrations. Causes cryptosporidiosis.",
-    severity: "medium",
-    likelihood: "low",
+    severity: "3",  // Major — hospitalization possible, especially immunocompromised
+    likelihood: "1", // Rare — municipal water treatment effective
     sourceCategory: "water",
     applicableStepCategories: ["receiving", "processing"],
   },
@@ -80,8 +82,8 @@ const HAZARD_SEEDS: HazardSeed[] = [
     type: "biological",
     description:
       "Protozoan parasite associated with contaminated water and imported produce. Causes cyclosporiasis with prolonged diarrheal illness.",
-    severity: "medium",
-    likelihood: "low",
+    severity: "3",  // Major — prolonged illness
+    likelihood: "1", // Rare — mainly imported produce risk
     sourceCategory: "water",
     applicableStepCategories: ["receiving"],
   },
@@ -90,8 +92,8 @@ const HAZARD_SEEDS: HazardSeed[] = [
     type: "biological",
     description:
       "Enteric virus transmitted through contaminated water or infected food handlers. Causes hepatitis with jaundice, fatigue, and liver inflammation.",
-    severity: "high",
-    likelihood: "low",
+    severity: "4",  // Critical — liver damage, hospitalization
+    likelihood: "1", // Rare — personnel hygiene programs effective
     sourceCategory: "personnel",
     applicableStepCategories: [
       "receiving",
@@ -104,8 +106,8 @@ const HAZARD_SEEDS: HazardSeed[] = [
     type: "biological",
     description:
       "Non-pathogenic but quality-affecting microorganisms including yeasts and molds. Cause visible spoilage, off-odors, and reduced shelf life.",
-    severity: "low",
-    likelihood: "high",
+    severity: "1",  // Negligible — quality issue, not safety
+    likelihood: "4", // Almost Certain — always present in environment
     sourceCategory: "environment",
     applicableStepCategories: [
       "receiving",
@@ -121,8 +123,8 @@ const HAZARD_SEEDS: HazardSeed[] = [
     type: "chemical",
     description:
       "Residues from field-applied pesticides, herbicides, and fungicides. Risk of exceeding Maximum Residue Limits (MRLs) set by Health Canada if pre-harvest intervals not observed.",
-    severity: "medium",
-    likelihood: "low",
+    severity: "3",  // Major — chronic health effects
+    likelihood: "2", // Unlikely — supplier GAP programs
     sourceCategory: "supplier",
     applicableStepCategories: ["receiving"],
   },
@@ -131,8 +133,8 @@ const HAZARD_SEEDS: HazardSeed[] = [
     type: "chemical",
     description:
       "Excess chlorine or sanitizer residue on product from over-dosing of sodium hypochlorite in wash water. Can cause chemical burns, off-flavors, and consumer health risk.",
-    severity: "medium",
-    likelihood: "medium",
+    severity: "2",  // Minor — irritation, off-flavor
+    likelihood: "3", // Likely — dosing varies, requires monitoring
     sourceCategory: "equipment",
     applicableStepCategories: ["processing"],
   },
@@ -141,8 +143,8 @@ const HAZARD_SEEDS: HazardSeed[] = [
     type: "chemical",
     description:
       "Contamination from equipment lubricants, greases, or hydraulic fluids. Risk from non-food-grade lubricants or excessive application near product contact surfaces.",
-    severity: "medium",
-    likelihood: "low",
+    severity: "2",  // Minor — food-grade lubricants low risk
+    likelihood: "1", // Rare — maintenance SSOPs
     sourceCategory: "equipment",
     applicableStepCategories: ["processing"],
   },
@@ -151,8 +153,8 @@ const HAZARD_SEEDS: HazardSeed[] = [
     type: "chemical",
     description:
       "Residues from cleaning and sanitation chemicals (detergents, acids, alkalis) remaining on equipment surfaces after inadequate rinsing.",
-    severity: "medium",
-    likelihood: "low",
+    severity: "2",  // Minor — irritation
+    likelihood: "2", // Unlikely — rinse verification SSOPs
     sourceCategory: "equipment",
     applicableStepCategories: [
       "processing",
@@ -165,8 +167,8 @@ const HAZARD_SEEDS: HazardSeed[] = [
     type: "chemical",
     description:
       "Cross-contact with allergenic substances from shared equipment or facility. Canada's priority allergens include peanuts, tree nuts, milk, eggs, wheat, soy, sesame, mustard, seafood, and sulphites.",
-    severity: "high",
-    likelihood: "low",
+    severity: "4",  // Critical — anaphylaxis, life-threatening
+    likelihood: "1", // Rare — dedicated line, no allergens in facility
     sourceCategory: "equipment",
     applicableStepCategories: ["processing", "packaging"],
   },
@@ -175,8 +177,8 @@ const HAZARD_SEEDS: HazardSeed[] = [
     type: "chemical",
     description:
       "Heavy metal contamination from soil (industrial runoff, historical land use) or irrigation water. Lead and cadmium are of primary concern in root vegetables.",
-    severity: "medium",
-    likelihood: "low",
+    severity: "3",  // Major — chronic health effects
+    likelihood: "1", // Rare — verified agricultural land
     sourceCategory: "soil",
     applicableStepCategories: ["receiving"],
   },
@@ -187,8 +189,8 @@ const HAZARD_SEEDS: HazardSeed[] = [
     type: "physical",
     description:
       "Metal fragments from equipment wear, breakage, or deterioration. Includes ferrous (iron/steel), non-ferrous (copper, aluminum), and stainless steel particles. Can cause choking, tooth damage, or internal injury.",
-    severity: "high",
-    likelihood: "medium",
+    severity: "4",  // Critical — internal injury, choking
+    likelihood: "3", // Likely — equipment wear is ongoing
     sourceCategory: "equipment",
     applicableStepCategories: ["processing"],
   },
@@ -197,8 +199,8 @@ const HAZARD_SEEDS: HazardSeed[] = [
     type: "physical",
     description:
       "Stones, gravel, and soil clumps carried with root vegetables from field harvest. Can cause tooth damage or choking.",
-    severity: "medium",
-    likelihood: "medium",
+    severity: "3",  // Major — tooth damage, choking
+    likelihood: "3", // Likely — common in root vegetables
     sourceCategory: "soil",
     applicableStepCategories: ["receiving", "processing"],
   },
@@ -207,8 +209,8 @@ const HAZARD_SEEDS: HazardSeed[] = [
     type: "physical",
     description:
       "Wood fragments from wooden pallets, crates, or field containers used during harvest and transport.",
-    severity: "medium",
-    likelihood: "low",
+    severity: "2",  // Minor — splinter injury
+    likelihood: "1", // Rare — visual inspection at receiving
     sourceCategory: "equipment",
     applicableStepCategories: ["receiving"],
   },
@@ -217,8 +219,8 @@ const HAZARD_SEEDS: HazardSeed[] = [
     type: "physical",
     description:
       "Plastic pieces from packaging materials, equipment guards, conveyor components, or container deterioration.",
-    severity: "medium",
-    likelihood: "low",
+    severity: "2",  // Minor — choking risk low
+    likelihood: "2", // Unlikely — equipment maintenance
     sourceCategory: "equipment",
     applicableStepCategories: ["processing", "packaging"],
   },
@@ -227,8 +229,8 @@ const HAZARD_SEEDS: HazardSeed[] = [
     type: "physical",
     description:
       "Glass from light fixtures, instrument covers, or facility infrastructure. High injury potential. Controlled by glass and brittle plastics policy.",
-    severity: "high",
-    likelihood: "low",
+    severity: "4",  // Critical — internal injury, lacerations
+    likelihood: "1", // Rare — shatterproof covers, glass policy
     sourceCategory: "environment",
     applicableStepCategories: [
       "receiving",
@@ -242,8 +244,8 @@ const HAZARD_SEEDS: HazardSeed[] = [
     type: "physical",
     description:
       "Foreign objects from workers including jewelry, bandages, hair, fingernails, buttons. Controlled by personnel hygiene GMP program.",
-    severity: "medium",
-    likelihood: "low",
+    severity: "2",  // Minor — choking, consumer complaint
+    likelihood: "2", // Unlikely — GMP program
     sourceCategory: "personnel",
     applicableStepCategories: [
       "processing",
@@ -255,8 +257,8 @@ const HAZARD_SEEDS: HazardSeed[] = [
     type: "physical",
     description:
       "Insects, rodent droppings, or other pest-related contamination from field, storage, or processing areas.",
-    severity: "low",
-    likelihood: "medium",
+    severity: "1",  // Negligible — consumer complaint, not safety
+    likelihood: "3", // Likely — field/storage exposure
     sourceCategory: "environment",
     applicableStepCategories: ["receiving", "storage"],
   },
