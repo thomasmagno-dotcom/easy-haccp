@@ -4,6 +4,7 @@ import { processSteps } from "@/lib/db/schema";
 import { eq, asc } from "drizzle-orm";
 import { generateId } from "@/lib/utils";
 import { logAudit } from "@/lib/audit";
+import { getNextNumber, renumberedAfterRemoval } from "@/lib/logic/numbering";
 
 export async function GET(
   _req: Request,
@@ -38,19 +39,21 @@ export async function POST(
     return NextResponse.json({ success: true });
   }
 
-  // Create new step
-  const existingSteps = db
-    .select()
+  // Create new step — use getNextNumber to avoid count-vs-max discrepancy
+  const existingNumbers = db
+    .select({ stepNumber: processSteps.stepNumber })
     .from(processSteps)
     .where(eq(processSteps.planId, planId))
-    .all();
-  const nextNumber = existingSteps.length + 1;
+    .all()
+    .map((s) => s.stepNumber);
+
+  const nextNumber = body.stepNumber ?? getNextNumber(existingNumbers);
 
   const stepId = generateId();
   const step = {
     id: stepId,
     planId,
-    stepNumber: body.stepNumber ?? nextNumber,
+    stepNumber: nextNumber,
     name: body.name || `Step ${nextNumber}`,
     description: body.description || "",
     category: body.category || "processing",
@@ -125,7 +128,7 @@ export async function DELETE(
 
   db.delete(processSteps).where(eq(processSteps.id, stepId)).run();
 
-  // Renumber remaining steps
+  // Renumber remaining steps using pure helper
   const remaining = db
     .select()
     .from(processSteps)
@@ -133,11 +136,16 @@ export async function DELETE(
     .orderBy(asc(processSteps.stepNumber))
     .all();
 
-  for (let i = 0; i < remaining.length; i++) {
-    db.update(processSteps)
-      .set({ stepNumber: i + 1 })
-      .where(eq(processSteps.id, remaining[i].id))
-      .run();
+  // renumberedAfterRemoval expects the item to still be in the list, but since
+  // we already deleted it, we just renumber the remaining array directly
+  const renumbered = remaining.map((s, i) => ({ ...s, stepNumber: i + 1 }));
+  for (const step of renumbered) {
+    if (step.stepNumber !== remaining.find((r) => r.id === step.id)?.stepNumber) {
+      db.update(processSteps)
+        .set({ stepNumber: step.stepNumber })
+        .where(eq(processSteps.id, step.id))
+        .run();
+    }
   }
 
   logAudit({

@@ -27,21 +27,7 @@ export async function POST(req: Request) {
     facilityName: facilityName || "My Facility",
     status: "draft" as const,
     currentVersion: 0,
-    productDescription: JSON.stringify({
-      name: "Baby Carrots (Fresh-Cut, Peeled)",
-      characteristics:
-        "Peeled, cut, and washed fresh carrots. Packed in modified atmosphere. No preservatives. pH 5.8-6.5, Aw > 0.98",
-      intendedUse: "Ready-to-eat snack or ingredient. No further cooking required.",
-      targetConsumer:
-        "General public including children, elderly, immunocompromised",
-      shelfLife: "21 days from packaging date at 0-4°C",
-      packaging: "340g and 907g polyethylene bags, modified atmosphere (MAP)",
-      storageDistribution: "Refrigerated at 0-4°C throughout supply chain",
-      labellingInstructions:
-        '"Keep Refrigerated", "Best Before" date, lot code, facility ID',
-      regulatoryClassification:
-        "Fresh-cut vegetable, ready-to-eat. Subject to SFCR, CFIA inspection.",
-    }),
+    productDescription: JSON.stringify({}),
     teamMembers: JSON.stringify([]),
   };
 

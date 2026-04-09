@@ -32,6 +32,10 @@ export function StepAnalysis({
   availableHazards,
 }: Props) {
   const [assignments, setAssignments] = useState(initialAssignments);
+  const [isCcp, setIsCcp] = useState(step.isCcp ?? false);
+  const [ccpNumber, setCcpNumber] = useState<string | null>(
+    step.ccpNumber ?? null,
+  );
 
   const significantHazards = assignments.filter((a) => a.isSignificant);
   const hasAssessedHazards = assignments.some(
@@ -67,8 +71,8 @@ export function StepAnalysis({
             <h2 className="text-lg font-semibold">
               Step {step.stepNumber}: {step.name}
             </h2>
-            {step.isCcp && (
-              <Badge variant="destructive">{step.ccpNumber}</Badge>
+            {isCcp && (
+              <Badge variant="destructive">{ccpNumber}</Badge>
             )}
           </div>
           {step.description && (
@@ -98,6 +102,8 @@ export function StepAnalysis({
         <HazardIdentificationSection
           planId={planId}
           stepId={step.id}
+          stepName={step.name}
+          stepCategory={step.category}
           assignments={assignments}
           availableHazards={availableHazards}
           onUpdate={(updated) => setAssignments(updated)}
@@ -135,6 +141,8 @@ export function StepAnalysis({
         ) : (
           <DecisionTreeSection
             planId={planId}
+            stepId={step.id}
+            isCcp={isCcp}
             significantHazards={significantHazards}
             onUpdate={(updatedAssignment) =>
               setAssignments((prev) =>
@@ -143,6 +151,10 @@ export function StepAnalysis({
                 ),
               )
             }
+            onCcpStatusChanged={(newIsCcp, newCcpNumber) => {
+              setIsCcp(newIsCcp);
+              setCcpNumber(newCcpNumber);
+            }}
           />
         )}
       </section>
@@ -162,12 +174,12 @@ export function StepAnalysis({
       </section>
 
       {/* Section 5: CCP Details (only if CCP) */}
-      {step.isCcp && (
+      {isCcp && (
         <>
           <Separator />
           <section>
             <h3 className="text-base font-semibold mb-4">
-              {hasAssessedHazards ? "5" : "4"}. CCP Details — {step.ccpNumber}
+              {hasAssessedHazards ? "5" : "4"}. CCP Details — {ccpNumber}
             </h3>
             <CcpDetailsSection
               planId={planId}

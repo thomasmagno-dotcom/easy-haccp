@@ -103,6 +103,38 @@ export interface CcpData {
   verificationProcedures: VerificationProcedure[];
 }
 
+export interface IngredientControlMeasure {
+  id: string;
+  ingredientHazardId: string;
+  description: string;
+  type: string | null;
+  createdAt: string;
+}
+
+export interface IngredientHazardAssignment {
+  id: string;
+  ingredientId: string;
+  hazardId: string;
+  hazard: Hazard;
+  isSignificant: boolean;
+  justification: string | null;
+  severityOverride: string | null;
+  likelihoodOverride: string | null;
+  createdAt: string;
+  controlMeasures: IngredientControlMeasure[];
+}
+
+export interface Ingredient {
+  id: string;
+  planId: string;
+  name: string;
+  category: string | null;
+  description: string | null;
+  supplier: string | null;
+  createdAt: string;
+  hazards: IngredientHazardAssignment[];
+}
+
 export interface DecisionTreeAnswers {
   q1: boolean | null; // Does a control measure exist?
   q2: boolean | null; // Is step designed to eliminate/reduce?

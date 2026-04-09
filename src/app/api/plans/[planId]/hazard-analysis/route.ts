@@ -129,7 +129,9 @@ export async function PUT(
     updates.decisionTreeAnswers = JSON.stringify(updates.decisionTreeAnswers);
   }
 
-  db.update(stepHazards).set(updates).where(eq(stepHazards.id, id)).run();
+  if (Object.keys(updates).length > 0) {
+    db.update(stepHazards).set(updates).where(eq(stepHazards.id, id)).run();
+  }
 
   // Update control measures if provided
   if (controlMeasureUpdates && Array.isArray(controlMeasureUpdates)) {
