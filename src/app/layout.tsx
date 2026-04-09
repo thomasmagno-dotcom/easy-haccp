@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import PasswordGate from "@/components/PasswordGate";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -30,7 +31,9 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full bg-neutral-50 text-neutral-900">
-        <TooltipProvider>{children}</TooltipProvider>
+        <TooltipProvider>
+          <PasswordGate>{children}</PasswordGate>
+        </TooltipProvider>
       </body>
     </html>
   );
