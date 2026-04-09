@@ -10,40 +10,29 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import {
+  computeResult,
+  stepIsCcp,
+  parseDecisionTree,
+} from "@/lib/logic/decision-tree";
 import type { StepHazardAssignment, DecisionTreeAnswers } from "@/lib/types";
 
 interface Props {
   planId: string;
+  stepId: string;
+  isCcp: boolean;
   significantHazards: StepHazardAssignment[];
   onUpdate: (updatedAssignment: StepHazardAssignment) => void;
-}
-
-function parseDecisionTree(json: string | null): DecisionTreeAnswers {
-  if (!json) return { q1: null, q2: null, q3: null, q4: null, result: null };
-  try {
-    return JSON.parse(json);
-  } catch {
-    return { q1: null, q2: null, q3: null, q4: null, result: null };
-  }
-}
-
-function computeResult(dt: DecisionTreeAnswers): DecisionTreeAnswers["result"] {
-  if (dt.q1 === false) return "not_ccp"; // No control measure → modify step or find one
-  if (dt.q1 === true && dt.q2 === true) return "ccp";
-  if (dt.q1 === true && dt.q2 === false) {
-    if (dt.q3 === false) return "not_ccp";
-    if (dt.q3 === true) {
-      if (dt.q4 === true) return "not_ccp"; // Controlled by subsequent step
-      if (dt.q4 === false) return "ccp";
-    }
-  }
-  return null;
+  onCcpStatusChanged: (isCcp: boolean, ccpNumber: string | null) => void;
 }
 
 export function DecisionTreeSection({
   planId,
+  stepId,
+  isCcp,
   significantHazards,
   onUpdate,
+  onCcpStatusChanged,
 }: Props) {
   const [answers, setAnswers] = useState<Record<string, DecisionTreeAnswers>>(
     () => {
@@ -86,6 +75,10 @@ export function DecisionTreeSection({
 
     updated.result = computeResult(updated);
 
+    // Compute merged answers NOW (before setAnswers) to check CCP status
+    const allAnswers = { ...answers, [shId]: updated };
+    const stepShouldBeCcp = stepIsCcp(allAnswers);
+
     setAnswers((prev) => ({ ...prev, [shId]: updated }));
 
     const res = await fetch(`/api/plans/${planId}/hazard-analysis`, {
@@ -105,6 +98,47 @@ export function DecisionTreeSection({
           ...hazard,
           decisionTreeAnswers: JSON.stringify(updated),
         });
+      }
+
+      // Designate or un-designate CCP on the process step
+      if (stepShouldBeCcp !== isCcp) {
+        if (stepShouldBeCcp) {
+          // Determine next CCP number across the plan
+          const stepsRes = await fetch(`/api/plans/${planId}/process-steps`);
+          const allSteps: { isCcp: boolean; ccpNumber: string | null }[] =
+            stepsRes.ok ? await stepsRes.json() : [];
+          const usedNumbers = allSteps
+            .filter((s) => s.isCcp && s.ccpNumber)
+            .map((s) => {
+              const n = parseInt((s.ccpNumber ?? "").replace("CCP-", ""), 10);
+              return isNaN(n) ? 0 : n;
+            });
+          const nextNum =
+            usedNumbers.length > 0 ? Math.max(...usedNumbers) + 1 : 1;
+          const newCcpNumber = `CCP-${nextNum}`;
+
+          await fetch(`/api/plans/${planId}/process-steps`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: stepId,
+              isCcp: true,
+              ccpNumber: newCcpNumber,
+            }),
+          });
+          onCcpStatusChanged(true, newCcpNumber);
+        } else {
+          await fetch(`/api/plans/${planId}/process-steps`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: stepId,
+              isCcp: false,
+              ccpNumber: null,
+            }),
+          });
+          onCcpStatusChanged(false, null);
+        }
       }
     }
   }

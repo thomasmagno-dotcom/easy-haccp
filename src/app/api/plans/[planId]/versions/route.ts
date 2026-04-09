@@ -1,21 +1,11 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import {
-  haccpPlans,
-  planVersions,
-  processSteps,
-  stepHazards,
-  hazards,
-  controlMeasures,
-  ccps,
-  criticalLimits,
-  monitoringProcedures,
-  correctiveActions,
-  verificationProcedures,
-} from "@/lib/db/schema";
-import { eq, asc, desc } from "drizzle-orm";
+import { haccpPlans, planVersions } from "@/lib/db/schema";
+import { eq, desc } from "drizzle-orm";
 import { generateId } from "@/lib/utils";
 import { logAudit } from "@/lib/audit";
+import { diffSnapshots } from "@/lib/diff-snapshots";
+import { buildCurrentSnapshot } from "@/lib/queries/build-snapshot";
 
 // GET all versions for a plan
 export async function GET(
@@ -38,6 +28,7 @@ export async function GET(
       publishedAt: v.publishedAt,
       publishedBy: v.publishedBy,
       changeDescription: v.changeDescription,
+      changeLog: v.changeLog ? JSON.parse(v.changeLog) : null,
     })),
   );
 }
@@ -51,75 +42,52 @@ export async function POST(
   const body = await req.json();
   const { changeDescription, publishedBy } = body;
 
-  // Build full snapshot
-  const plan = db
-    .select()
-    .from(haccpPlans)
-    .where(eq(haccpPlans.id, planId))
-    .get();
-
-  if (!plan) {
+  // Build full snapshot using shared module
+  const snapshot = buildCurrentSnapshot(db, planId);
+  if (!snapshot) {
     return NextResponse.json({ error: "Plan not found" }, { status: 404 });
   }
+  const { plan, processSteps: stepsWithInputs, ingredients: ingredientsWithHazards } = snapshot;
 
-  const steps = db
+  // Fetch the previous snapshot for diffing
+  const previousVersion = db
     .select()
-    .from(processSteps)
-    .where(eq(processSteps.planId, planId))
-    .orderBy(asc(processSteps.stepNumber))
-    .all();
+    .from(planVersions)
+    .where(eq(planVersions.planId, planId))
+    .orderBy(desc(planVersions.versionNumber))
+    .get();
 
-  const stepsWithData = steps.map((step) => {
-    const shList = db
-      .select({ stepHazard: stepHazards, hazard: hazards })
-      .from(stepHazards)
-      .innerJoin(hazards, eq(stepHazards.hazardId, hazards.id))
-      .where(eq(stepHazards.stepId, step.id))
-      .all();
+  let previousSnapshot = null;
+  if (previousVersion?.snapshot) {
+    try { previousSnapshot = JSON.parse(previousVersion.snapshot); } catch { /* ignore */ }
+  }
 
-    const hazardData = shList.map((sh) => {
-      const measures = db
-        .select()
-        .from(controlMeasures)
-        .where(eq(controlMeasures.stepHazardId, sh.stepHazard.id))
-        .all();
-      return { ...sh.stepHazard, hazard: sh.hazard, controlMeasures: measures };
-    });
-
-    let ccpData = null;
-    if (step.isCcp) {
-      const ccp = db.select().from(ccps).where(eq(ccps.stepId, step.id)).get();
-      if (ccp) {
-        ccpData = {
-          ...ccp,
-          criticalLimits: db.select().from(criticalLimits).where(eq(criticalLimits.ccpId, ccp.id)).all(),
-          monitoringProcedures: db.select().from(monitoringProcedures).where(eq(monitoringProcedures.ccpId, ccp.id)).all(),
-          correctiveActions: db.select().from(correctiveActions).where(eq(correctiveActions.ccpId, ccp.id)).all(),
-          verificationProcedures: db.select().from(verificationProcedures).where(eq(verificationProcedures.ccpId, ccp.id)).all(),
-        };
-      }
-    }
-
-    return { ...step, hazards: hazardData, ccp: ccpData };
-  });
-
-  const snapshot = {
-    plan: { ...plan },
-    processSteps: stepsWithData,
-    snapshotAt: new Date().toISOString(),
-  };
+  const currentSnapshot = { plan, processSteps: stepsWithInputs, ingredients: ingredientsWithHazards };
+  const changeEntries = diffSnapshots(previousSnapshot, currentSnapshot);
+  const changeLogJson = JSON.stringify(changeEntries);
 
   const versionNumber = plan.currentVersion + 1;
   const versionId = generateId();
+
+  const versionSnapshot = {
+    plan: { ...plan },
+    processSteps: stepsWithInputs,
+    ingredients: ingredientsWithHazards,
+    snapshotAt: new Date().toISOString(),
+    publishedBy: publishedBy || null,
+    changeDescription: changeDescription || null,
+    versionNumber,
+  };
 
   db.insert(planVersions)
     .values({
       id: versionId,
       planId,
       versionNumber,
-      snapshot: JSON.stringify(snapshot),
+      snapshot: JSON.stringify(versionSnapshot),
       publishedBy: publishedBy || null,
       changeDescription: changeDescription || null,
+      changeLog: changeLogJson,
     })
     .run();
 
@@ -136,8 +104,19 @@ export async function POST(
     newValue: { action: "publish", versionNumber, changeDescription },
   });
 
+  const savedVersion = db
+    .select()
+    .from(planVersions)
+    .where(eq(planVersions.id, versionId))
+    .get();
+
   return NextResponse.json(
-    { id: versionId, versionNumber },
+    {
+      id: versionId,
+      versionNumber,
+      publishedAt: savedVersion?.publishedAt ?? new Date().toISOString(),
+      changeLog: changeEntries,
+    },
     { status: 201 },
   );
 }

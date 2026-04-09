@@ -13,7 +13,8 @@ export type EntityType =
   | "critical_limit"
   | "monitoring_procedure"
   | "corrective_action"
-  | "verification_procedure";
+  | "verification_procedure"
+  | "ingredient";
 
 interface AuditOptions {
   planId: string;

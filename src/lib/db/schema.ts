@@ -190,6 +190,87 @@ export const verificationProcedures = sqliteTable("verification_procedures", {
     .default(sql`(datetime('now'))`),
 });
 
+// ─── Ingredients & Incoming Materials (Form 2) ──────────────────────────────
+
+export const ingredients = sqliteTable("ingredients", {
+  id: text("id").primaryKey(),
+  planId: text("plan_id")
+    .notNull()
+    .references(() => haccpPlans.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  category: text("category"), // raw-material | packaging | water | additive | processing-aid | chemical | other
+  description: text("description"),
+  supplier: text("supplier"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+export const ingredientHazards = sqliteTable("ingredient_hazards", {
+  id: text("id").primaryKey(),
+  ingredientId: text("ingredient_id")
+    .notNull()
+    .references(() => ingredients.id, { onDelete: "cascade" }),
+  hazardId: text("hazard_id")
+    .notNull()
+    .references(() => hazards.id),
+  isSignificant: integer("is_significant", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  justification: text("justification"),
+  severityOverride: text("severity_override"),
+  likelihoodOverride: text("likelihood_override"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+// ─── Ingredient Control Measures ────────────────────────────────────────────
+
+export const ingredientControlMeasures = sqliteTable("ingredient_control_measures", {
+  id: text("id").primaryKey(),
+  ingredientHazardId: text("ingredient_hazard_id")
+    .notNull()
+    .references(() => ingredientHazards.id, { onDelete: "cascade" }),
+  description: text("description").notNull(),
+  type: text("type"), // preventive | eliminative | reductive | prp | external
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+// ─── Step Inputs ─────────────────────────────────────────────────────────────
+
+export const stepInputs = sqliteTable("step_inputs", {
+  id: text("id").primaryKey(),
+  stepId: text("step_id")
+    .notNull()
+    .references(() => processSteps.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  type: text("type"), // water | chemical | material | energy | other
+  notes: text("notes"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+// ─── Input Subgraph Steps ─────────────────────────────────────────────────────
+// Each stepInput can have its own mini process-flow (e.g. Receiving → Storage
+// for a packaging-materials input before it enters the main flow).
+
+export const inputSubgraphSteps = sqliteTable("input_subgraph_steps", {
+  id: text("id").primaryKey(),
+  inputId: text("input_id")
+    .notNull()
+    .references(() => stepInputs.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  stepNumber: integer("step_number").notNull().default(1),
+  category: text("category"), // receiving | storage | processing | inspection | other
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
 // ─── Plan Versions (Immutable Snapshots) ────────────────────────────────────
 
 export const planVersions = sqliteTable("plan_versions", {
@@ -205,6 +286,8 @@ export const planVersions = sqliteTable("plan_versions", {
   publishedBy: text("published_by"),
   changeDescription: text("change_description"),
   previousVersionId: text("previous_version_id"),
+  // Auto-generated structured change log (JSON array of strings)
+  changeLog: text("change_log"),
 });
 
 // ─── Audit Log ──────────────────────────────────────────────────────────────

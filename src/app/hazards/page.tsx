@@ -2,25 +2,22 @@ import { AppShell } from "@/components/layout/AppShell";
 import { db } from "@/lib/db";
 import { hazards } from "@/lib/db/schema";
 import { asc } from "drizzle-orm";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { SEVERITY_LEVELS, LIKELIHOOD_LEVELS, computeRiskScore, RISK_COLORS } from "@/lib/risk-matrix";
 
 export const dynamic = "force-dynamic";
 
-const TYPE_COLORS: Record<string, string> = {
-  biological: "bg-red-100 text-red-700",
-  chemical: "bg-orange-100 text-orange-700",
-  physical: "bg-blue-100 text-blue-700",
-  allergen: "bg-purple-100 text-purple-700",
+const TYPE_CONFIG: Record<string, { label: string; color: string; badgeColor: string }> = {
+  biological:   { label: "Biological",    color: "bg-red-100 text-red-700 border-red-200",           badgeColor: "bg-red-100 text-red-700" },
+  chemical:     { label: "Chemical",      color: "bg-orange-100 text-orange-700 border-orange-200",  badgeColor: "bg-orange-100 text-orange-700" },
+  physical:     { label: "Physical",      color: "bg-blue-100 text-blue-700 border-blue-200",         badgeColor: "bg-blue-100 text-blue-700" },
+  allergen:     { label: "Allergen",      color: "bg-purple-100 text-purple-700 border-purple-200",  badgeColor: "bg-purple-100 text-purple-700" },
+  radiological: { label: "Radiological",  color: "bg-yellow-100 text-yellow-700 border-yellow-200", badgeColor: "bg-yellow-100 text-yellow-700" },
+  fraud:        { label: "Food Fraud / EMA", color: "bg-neutral-100 text-neutral-700 border-neutral-200", badgeColor: "bg-neutral-100 text-neutral-700" },
 };
+
+// Canonical display order
+const TYPE_ORDER = ["biological", "chemical", "physical", "allergen", "radiological", "fraud"];
 
 export default function HazardsPage() {
   const allHazards = db
@@ -29,102 +26,147 @@ export default function HazardsPage() {
     .orderBy(asc(hazards.type), asc(hazards.name))
     .all();
 
-  const grouped = {
-    biological: allHazards.filter((h) => h.type === "biological"),
-    chemical: allHazards.filter((h) => h.type === "chemical"),
-    physical: allHazards.filter((h) => h.type === "physical"),
-    allergen: allHazards.filter((h) => h.type === "allergen"),
-  };
+  // Group by type — include any type present in DB
+  const grouped: Record<string, typeof allHazards> = {};
+  for (const h of allHazards) {
+    if (!grouped[h.type]) grouped[h.type] = [];
+    grouped[h.type].push(h);
+  }
+
+  // Ordered list of types that actually have data
+  const orderedTypes = [
+    ...TYPE_ORDER.filter((t) => grouped[t]?.length > 0),
+    ...Object.keys(grouped).filter((t) => !TYPE_ORDER.includes(t)),
+  ];
+
+  const categoriesWithData = orderedTypes.length;
 
   return (
     <AppShell>
-      <div className="p-8 max-w-5xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold tracking-tight">
-            Hazard Reference Database
-          </h1>
-          <p className="text-sm text-neutral-500 mt-1">
-            Pre-populated hazards for fresh-cut produce processing.{" "}
-            {allHazards.length} hazards across{" "}
-            {Object.values(grouped).filter((g) => g.length > 0).length} categories.
-          </p>
+      <div className="p-6 max-w-full">
+        {/* Header */}
+        <div className="mb-6 flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Hazard Reference Database</h1>
+            <p className="text-sm text-neutral-500 mt-1">
+              {allHazards.length} hazards across {categoriesWithData} categories — applicable to all food sectors.
+            </p>
+          </div>
+          {/* Category legend */}
+          <div className="flex flex-wrap gap-2 justify-end max-w-lg">
+            {orderedTypes.map((type) => {
+              const cfg = TYPE_CONFIG[type] ?? { label: type, badgeColor: "bg-neutral-100 text-neutral-700" };
+              return (
+                <span key={type} className={`text-xs px-2 py-0.5 rounded border font-medium ${cfg.color}`}>
+                  {cfg.label} ({grouped[type].length})
+                </span>
+              );
+            })}
+          </div>
         </div>
 
-        {(["biological", "chemical", "physical", "allergen"] as const).map(
-          (type) => {
-            const items = grouped[type];
-            if (items.length === 0) return null;
-            return (
-              <div key={type} className="mb-8">
-                <h2 className="text-sm font-semibold uppercase text-neutral-500 mb-3 flex items-center gap-2">
-                  <span
-                    className={`px-2 py-0.5 rounded text-xs font-bold ${TYPE_COLORS[type]}`}
-                  >
-                    {type.charAt(0).toUpperCase()}
-                  </span>
-                  {type.charAt(0).toUpperCase() + type.slice(1)} Hazards ({items.length})
+        {/* One section per hazard type */}
+        {orderedTypes.map((type) => {
+          const items = grouped[type];
+          const cfg = TYPE_CONFIG[type] ?? { label: type, color: "bg-neutral-100 text-neutral-700 border-neutral-200", badgeColor: "bg-neutral-100 text-neutral-700" };
+
+          return (
+            <div key={type} className="mb-10">
+              {/* Section heading */}
+              <div className="flex items-center gap-3 mb-3">
+                <span className={`text-xs font-bold px-2 py-0.5 rounded border ${cfg.color}`}>
+                  {cfg.label.charAt(0).toUpperCase()}
+                </span>
+                <h2 className="text-sm font-semibold text-neutral-700 uppercase tracking-wide">
+                  {cfg.label} Hazards
                 </h2>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead className="w-24">Severity</TableHead>
-                      <TableHead className="w-24">Likelihood</TableHead>
-                      <TableHead className="w-20 text-center">Risk</TableHead>
-                      <TableHead className="w-24">Source</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {items.map((h) => (
-                      <TableRow key={h.id}>
-                        <TableCell className="font-medium text-sm">
-                          {h.name}
-                        </TableCell>
-                        <TableCell className="text-xs text-neutral-600 max-w-md">
-                          {h.description}
-                        </TableCell>
-                        <TableCell>
-                          {(() => {
-                            const level = SEVERITY_LEVELS.find(l => l.value === h.severity);
-                            return level ? (
-                              <span className="text-xs">{level.value} — {level.label}</span>
+                <span className="text-xs text-neutral-400">({items.length})</span>
+              </div>
+
+              {/* Table */}
+              <div className="w-full overflow-x-auto rounded-lg border border-neutral-200">
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr className="bg-neutral-50 border-b border-neutral-200">
+                      <th className="text-left text-xs font-semibold text-neutral-600 px-4 py-2.5 w-56 shrink-0">Name</th>
+                      <th className="text-left text-xs font-semibold text-neutral-600 px-4 py-2.5">Description</th>
+                      <th className="text-left text-xs font-semibold text-neutral-600 px-4 py-2.5 w-32 shrink-0">Severity</th>
+                      <th className="text-left text-xs font-semibold text-neutral-600 px-4 py-2.5 w-36 shrink-0">Likelihood</th>
+                      <th className="text-center text-xs font-semibold text-neutral-600 px-4 py-2.5 w-20 shrink-0">Risk</th>
+                      <th className="text-left text-xs font-semibold text-neutral-600 px-4 py-2.5 w-28 shrink-0">Source</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((h, idx) => {
+                      const risk = computeRiskScore(h.severity, h.likelihood);
+                      const sevLevel = SEVERITY_LEVELS.find((l) => l.value === h.severity);
+                      const likLevel = LIKELIHOOD_LEVELS.find((l) => l.value === h.likelihood);
+
+                      return (
+                        <tr
+                          key={h.id}
+                          className={`border-b border-neutral-100 align-top ${idx % 2 === 0 ? "bg-white" : "bg-neutral-50/40"}`}
+                        >
+                          {/* Name */}
+                          <td className="px-4 py-3 font-medium text-sm text-neutral-900 w-56">
+                            {h.name}
+                          </td>
+
+                          {/* Description — wraps, no truncation */}
+                          <td className="px-4 py-3 text-xs text-neutral-600 leading-relaxed">
+                            {h.description}
+                          </td>
+
+                          {/* Severity */}
+                          <td className="px-4 py-3 w-32">
+                            {sevLevel ? (
+                              <div>
+                                <span className={`inline-block text-xs font-semibold px-1.5 py-0.5 rounded ${sevLevel.color}`}>
+                                  {sevLevel.value} — {sevLevel.label}
+                                </span>
+                              </div>
                             ) : (
-                              <span className="text-xs text-neutral-400">{h.severity}</span>
-                            );
-                          })()}
-                        </TableCell>
-                        <TableCell>
-                          {(() => {
-                            const level = LIKELIHOOD_LEVELS.find(l => l.value === h.likelihood);
-                            return level ? (
-                              <span className="text-xs">{level.value} — {level.label}</span>
+                              <span className="text-xs text-neutral-400">{h.severity ?? "—"}</span>
+                            )}
+                          </td>
+
+                          {/* Likelihood */}
+                          <td className="px-4 py-3 w-36">
+                            {likLevel ? (
+                              <div>
+                                <span className={`inline-block text-xs font-semibold px-1.5 py-0.5 rounded ${likLevel.color}`}>
+                                  {likLevel.value} — {likLevel.label}
+                                </span>
+                              </div>
                             ) : (
-                              <span className="text-xs text-neutral-400">{h.likelihood}</span>
-                            );
-                          })()}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {(() => {
-                            const risk = computeRiskScore(h.severity, h.likelihood);
-                            return risk.score > 0 ? (
-                              <span className={`text-xs px-2 py-0.5 rounded font-bold border ${RISK_COLORS[risk.category]}`}>
+                              <span className="text-xs text-neutral-400">{h.likelihood ?? "—"}</span>
+                            )}
+                          </td>
+
+                          {/* Risk score */}
+                          <td className="px-4 py-3 text-center w-20">
+                            {risk.score > 0 ? (
+                              <span className={`inline-block text-xs font-bold px-2 py-0.5 rounded border ${RISK_COLORS[risk.category]}`}>
                                 {risk.score}
                               </span>
-                            ) : null;
-                          })()}
-                        </TableCell>
-                        <TableCell className="text-xs text-neutral-500 capitalize">
-                          {h.sourceCategory}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                            ) : (
+                              <span className="text-xs text-neutral-300">—</span>
+                            )}
+                          </td>
+
+                          {/* Source */}
+                          <td className="px-4 py-3 text-xs text-neutral-500 capitalize w-28">
+                            {h.sourceCategory ?? "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-            );
-          },
-        )}
+            </div>
+          );
+        })}
       </div>
     </AppShell>
   );

@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { haccpPlans } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { logAudit } from "@/lib/audit";
+import { filterPlanUpdateFields } from "@/lib/validators/plan";
 
 export async function GET(
   _req: Request,
@@ -22,6 +23,35 @@ export async function GET(
   return NextResponse.json(plan);
 }
 
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ planId: string }> },
+) {
+  const { planId } = await params;
+
+  const plan = db
+    .select()
+    .from(haccpPlans)
+    .where(eq(haccpPlans.id, planId))
+    .get();
+
+  if (!plan) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  db.delete(haccpPlans).where(eq(haccpPlans.id, planId)).run();
+
+  logAudit({
+    planId,
+    entityType: "plan",
+    entityId: planId,
+    action: "delete",
+    previousValue: plan,
+  });
+
+  return NextResponse.json({ ok: true });
+}
+
 export async function PUT(
   req: Request,
   { params }: { params: Promise<{ planId: string }> },
@@ -39,19 +69,10 @@ export async function PUT(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const updates: Record<string, unknown> = {};
-  const allowedFields = [
-    "name", "facilityName", "facilityAddress",
-    "productDescription", "teamMembers", "scope", "status",
-  ];
-
-  for (const field of allowedFields) {
-    if (body[field] !== undefined) {
-      updates[field] = body[field];
-    }
-  }
-
-  updates.updatedAt = new Date().toISOString();
+  const updates: Record<string, unknown> = {
+    ...filterPlanUpdateFields(body),
+    updatedAt: new Date().toISOString(),
+  };
 
   db.update(haccpPlans).set(updates).where(eq(haccpPlans.id, planId)).run();
 
