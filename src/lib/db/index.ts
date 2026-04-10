@@ -20,7 +20,8 @@ function getDb() {
 
 export const db = new Proxy({} as ReturnType<typeof getDb>, {
   get(_target, prop) {
-    return (getDb() as Record<string | symbol, unknown>)[prop];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (getDb() as any)[prop];
   },
 });
 
