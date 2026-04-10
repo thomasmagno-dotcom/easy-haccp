@@ -17,15 +17,15 @@ export async function GET(
 ) {
   const { planId } = await params;
 
-  const rows = db
+  const rows = await db
     .select()
     .from(ingredients)
     .where(eq(ingredients.planId, planId))
     .orderBy(asc(ingredients.createdAt))
     .all();
 
-  const result = rows.map((ing) => {
-    const ihList = db
+  const result = await Promise.all(rows.map(async (ing) => {
+    const ihList = await db
       .select({ ih: ingredientHazards, hazard: hazards })
       .from(ingredientHazards)
       .innerJoin(hazards, eq(ingredientHazards.hazardId, hazards.id))
@@ -34,16 +34,16 @@ export async function GET(
 
     return {
       ...ing,
-      hazards: ihList.map((r) => {
-        const cms = db
+      hazards: await Promise.all(ihList.map(async (r) => {
+        const cms = await db
           .select()
           .from(ingredientControlMeasures)
           .where(eq(ingredientControlMeasures.ingredientHazardId, r.ih.id))
           .all();
         return { ...r.ih, hazard: r.hazard, controlMeasures: cms };
-      }),
+      })),
     };
-  });
+  }));
 
   return NextResponse.json(result);
 }
@@ -58,7 +58,7 @@ export async function POST(
   const { name, category, description, supplier } = body;
 
   const id = generateId();
-  db.insert(ingredients)
+  await db.insert(ingredients)
     .values({
       id,
       planId,
@@ -69,7 +69,7 @@ export async function POST(
     })
     .run();
 
-  logAudit({ planId, entityType: "ingredient", entityId: id, action: "create", newValue: { id, name, category } });
+  await logAudit({ planId, entityType: "ingredient", entityId: id, action: "create", newValue: { id, name, category } });
 
   return NextResponse.json({ id }, { status: 201 });
 }
@@ -85,17 +85,17 @@ export async function PUT(
 
   // Update ingredient fields if any provided
   if (Object.keys(updates).length > 0) {
-    db.update(ingredients).set(updates).where(eq(ingredients.id, id)).run();
+    await db.update(ingredients).set(updates).where(eq(ingredients.id, id)).run();
   }
 
   // Replace hazard assignments (including control measures) if provided
   if (hazardUpdates && Array.isArray(hazardUpdates)) {
     // Delete all existing hazard assignments (cascades to their control measures)
-    db.delete(ingredientHazards).where(eq(ingredientHazards.ingredientId, id)).run();
+    await db.delete(ingredientHazards).where(eq(ingredientHazards.ingredientId, id)).run();
 
     for (const h of hazardUpdates) {
       const ihId = generateId();
-      db.insert(ingredientHazards)
+      await db.insert(ingredientHazards)
         .values({
           id: ihId,
           ingredientId: id,
@@ -110,7 +110,7 @@ export async function PUT(
       // Recreate control measures for this hazard assignment
       if (Array.isArray(h.controlMeasures)) {
         for (const cm of h.controlMeasures) {
-          db.insert(ingredientControlMeasures)
+          await db.insert(ingredientControlMeasures)
             .values({
               id: generateId(),
               ingredientHazardId: ihId,
@@ -123,7 +123,7 @@ export async function PUT(
     }
   }
 
-  logAudit({ planId, entityType: "ingredient", entityId: id, action: "update", newValue: body });
+  await logAudit({ planId, entityType: "ingredient", entityId: id, action: "update", newValue: body });
 
   return NextResponse.json({ success: true });
 }
@@ -139,9 +139,9 @@ export async function DELETE(
 
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
-  db.delete(ingredients).where(eq(ingredients.id, id)).run();
+  await db.delete(ingredients).where(eq(ingredients.id, id)).run();
 
-  logAudit({ planId, entityType: "ingredient", entityId: id, action: "delete" });
+  await logAudit({ planId, entityType: "ingredient", entityId: id, action: "delete" });
 
   return NextResponse.json({ success: true });
 }

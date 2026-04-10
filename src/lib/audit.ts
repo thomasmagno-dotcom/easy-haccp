@@ -27,8 +27,8 @@ interface AuditOptions {
   sessionId?: string;
 }
 
-export function logAudit(options: AuditOptions): void {
-  db.insert(auditLog)
+export async function logAudit(options: AuditOptions): Promise<void> {
+  await db.insert(auditLog)
     .values({
       id: generateId(),
       planId: options.planId,

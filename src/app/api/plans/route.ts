@@ -7,7 +7,7 @@ import { BABY_CARROT_STEPS } from "@/lib/db/seed";
 import { desc } from "drizzle-orm";
 
 export async function GET() {
-  const plans = db
+  const plans = await db
     .select()
     .from(haccpPlans)
     .orderBy(desc(haccpPlans.updatedAt))
@@ -31,9 +31,9 @@ export async function POST(req: Request) {
     teamMembers: JSON.stringify([]),
   };
 
-  db.insert(haccpPlans).values(plan).run();
+  await db.insert(haccpPlans).values(plan).run();
 
-  logAudit({
+  await logAudit({
     planId,
     entityType: "plan",
     entityId: planId,
@@ -55,8 +55,8 @@ export async function POST(req: Request) {
         isCcp: step.isCcp,
         ccpNumber: step.ccpNumber,
       };
-      db.insert(processSteps).values(stepData).run();
-      logAudit({
+      await db.insert(processSteps).values(stepData).run();
+      await logAudit({
         planId,
         entityType: "process_step",
         entityId: stepId,

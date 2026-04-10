@@ -13,7 +13,7 @@ export async function GET(
   { params }: { params: Promise<{ planId: string }> },
 ) {
   const { planId } = await params;
-  const versions = db
+  const versions = await db
     .select()
     .from(planVersions)
     .where(eq(planVersions.planId, planId))
@@ -43,14 +43,14 @@ export async function POST(
   const { changeDescription, publishedBy } = body;
 
   // Build full snapshot using shared module
-  const snapshot = buildCurrentSnapshot(db, planId);
+  const snapshot = await buildCurrentSnapshot(db, planId);
   if (!snapshot) {
     return NextResponse.json({ error: "Plan not found" }, { status: 404 });
   }
   const { plan, processSteps: stepsWithInputs, ingredients: ingredientsWithHazards } = snapshot;
 
   // Fetch the previous snapshot for diffing
-  const previousVersion = db
+  const previousVersion = await db
     .select()
     .from(planVersions)
     .where(eq(planVersions.planId, planId))
@@ -79,7 +79,7 @@ export async function POST(
     versionNumber,
   };
 
-  db.insert(planVersions)
+  await db.insert(planVersions)
     .values({
       id: versionId,
       planId,
@@ -91,12 +91,12 @@ export async function POST(
     })
     .run();
 
-  db.update(haccpPlans)
+  await db.update(haccpPlans)
     .set({ currentVersion: versionNumber, status: "published" })
     .where(eq(haccpPlans.id, planId))
     .run();
 
-  logAudit({
+  await logAudit({
     planId,
     entityType: "plan",
     entityId: planId,
@@ -104,7 +104,7 @@ export async function POST(
     newValue: { action: "publish", versionNumber, changeDescription },
   });
 
-  const savedVersion = db
+  const savedVersion = await db
     .select()
     .from(planVersions)
     .where(eq(planVersions.id, versionId))

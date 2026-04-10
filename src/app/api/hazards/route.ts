@@ -5,7 +5,7 @@ import { generateId } from "@/lib/utils";
 import { asc } from "drizzle-orm";
 
 export async function GET() {
-  const allHazards = db
+  const allHazards = await db
     .select()
     .from(hazards)
     .orderBy(asc(hazards.type), asc(hazards.name))
@@ -17,7 +17,7 @@ export async function POST(req: Request) {
   const body = await req.json();
   const id = generateId();
 
-  db.insert(hazards)
+  await db.insert(hazards)
     .values({
       id,
       name: body.name,

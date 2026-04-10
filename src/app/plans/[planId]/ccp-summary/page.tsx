@@ -28,27 +28,27 @@ export default async function CcpSummaryPage({
 }) {
   const { planId } = await params;
 
-  const steps = db
+  const allSteps = await db
     .select()
     .from(processSteps)
     .where(eq(processSteps.planId, planId))
     .orderBy(asc(processSteps.stepNumber))
-    .all()
-    .filter((s) => s.isCcp);
+    .all();
+  const steps = allSteps.filter((s) => s.isCcp);
 
-  const ccpRows = steps.map((step) => {
-    const ccp = db.select().from(ccps).where(eq(ccps.stepId, step.id)).get();
+  const ccpRows = await Promise.all(steps.map(async (step) => {
+    const ccp = await db.select().from(ccps).where(eq(ccps.stepId, step.id)).get();
     if (!ccp) return { step, ccp: null, limits: [], monitoring: [], corrective: [], verification: [] };
 
     return {
       step,
       ccp,
-      limits: db.select().from(criticalLimits).where(eq(criticalLimits.ccpId, ccp.id)).all(),
-      monitoring: db.select().from(monitoringProcedures).where(eq(monitoringProcedures.ccpId, ccp.id)).all(),
-      corrective: db.select().from(correctiveActions).where(eq(correctiveActions.ccpId, ccp.id)).all(),
-      verification: db.select().from(verificationProcedures).where(eq(verificationProcedures.ccpId, ccp.id)).all(),
+      limits: await db.select().from(criticalLimits).where(eq(criticalLimits.ccpId, ccp.id)).all(),
+      monitoring: await db.select().from(monitoringProcedures).where(eq(monitoringProcedures.ccpId, ccp.id)).all(),
+      corrective: await db.select().from(correctiveActions).where(eq(correctiveActions.ccpId, ccp.id)).all(),
+      verification: await db.select().from(verificationProcedures).where(eq(verificationProcedures.ccpId, ccp.id)).all(),
     };
-  });
+  }));
 
   return (
     <div>

@@ -10,7 +10,7 @@ export async function GET(
   { params }: { params: Promise<{ planId: string }> },
 ) {
   const { planId } = await params;
-  const plan = db
+  const plan = await db
     .select()
     .from(haccpPlans)
     .where(eq(haccpPlans.id, planId))
@@ -29,7 +29,7 @@ export async function DELETE(
 ) {
   const { planId } = await params;
 
-  const plan = db
+  const plan = await db
     .select()
     .from(haccpPlans)
     .where(eq(haccpPlans.id, planId))
@@ -39,9 +39,9 @@ export async function DELETE(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  db.delete(haccpPlans).where(eq(haccpPlans.id, planId)).run();
+  await db.delete(haccpPlans).where(eq(haccpPlans.id, planId)).run();
 
-  logAudit({
+  await logAudit({
     planId,
     entityType: "plan",
     entityId: planId,
@@ -59,7 +59,7 @@ export async function PUT(
   const { planId } = await params;
   const body = await req.json();
 
-  const previous = db
+  const previous = await db
     .select()
     .from(haccpPlans)
     .where(eq(haccpPlans.id, planId))
@@ -74,9 +74,9 @@ export async function PUT(
     updatedAt: new Date().toISOString(),
   };
 
-  db.update(haccpPlans).set(updates).where(eq(haccpPlans.id, planId)).run();
+  await db.update(haccpPlans).set(updates).where(eq(haccpPlans.id, planId)).run();
 
-  logAudit({
+  await logAudit({
     planId,
     entityType: "plan",
     entityId: planId,
@@ -85,7 +85,7 @@ export async function PUT(
     newValue: updates,
   });
 
-  const updated = db
+  const updated = await db
     .select()
     .from(haccpPlans)
     .where(eq(haccpPlans.id, planId))

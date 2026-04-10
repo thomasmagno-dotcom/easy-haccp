@@ -19,8 +19,8 @@ const TYPE_CONFIG: Record<string, { label: string; color: string; badgeColor: st
 // Canonical display order
 const TYPE_ORDER = ["biological", "chemical", "physical", "allergen", "radiological", "fraud"];
 
-export default function HazardsPage() {
-  const allHazards = db
+export default async function HazardsPage() {
+  const allHazards = await db
     .select()
     .from(hazards)
     .orderBy(asc(hazards.type), asc(hazards.name))

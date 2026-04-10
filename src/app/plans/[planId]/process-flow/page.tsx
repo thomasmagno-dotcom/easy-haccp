@@ -12,7 +12,7 @@ export default async function ProcessFlowPage({
 }) {
   const { planId } = await params;
 
-  const steps = db
+  const steps = await db
     .select()
     .from(processSteps)
     .where(eq(processSteps.planId, planId))
@@ -20,7 +20,7 @@ export default async function ProcessFlowPage({
     .all();
 
   // Hazard counts per step
-  const hazardCounts = db
+  const hazardCounts = await db
     .select({ stepId: stepHazards.stepId, count: sql<number>`count(*)` })
     .from(stepHazards)
     .groupBy(stepHazards.stepId)
@@ -31,7 +31,7 @@ export default async function ProcessFlowPage({
 
   // Step inputs
   const inputRows = steps.length > 0
-    ? db.select().from(stepInputs).where(inArray(stepInputs.stepId, steps.map((s) => s.id))).all()
+    ? await db.select().from(stepInputs).where(inArray(stepInputs.stepId, steps.map((s) => s.id))).all()
     : [];
 
   const inputsByStep: Record<string, typeof inputRows> = {};
@@ -42,7 +42,7 @@ export default async function ProcessFlowPage({
 
   // Input subgraph steps
   const subgraphRows = inputRows.length > 0
-    ? db
+    ? await db
         .select()
         .from(inputSubgraphSteps)
         .where(inArray(inputSubgraphSteps.inputId, inputRows.map((i) => i.id)))

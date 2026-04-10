@@ -6,8 +6,8 @@ import { desc } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
-export default function DashboardPage() {
-  const plans = db
+export default async function DashboardPage() {
+  const plans = await db
     .select()
     .from(haccpPlans)
     .orderBy(desc(haccpPlans.updatedAt))

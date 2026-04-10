@@ -11,7 +11,7 @@ export async function GET(
   { params }: { params: Promise<{ planId: string }> },
 ) {
   const { planId } = await params;
-  const steps = db
+  const steps = await db
     .select()
     .from(processSteps)
     .where(eq(processSteps.planId, planId))
@@ -31,7 +31,7 @@ export async function POST(
   if (body.action === "reorder") {
     const { stepIds } = body as { action: string; stepIds: string[] };
     for (let i = 0; i < stepIds.length; i++) {
-      db.update(processSteps)
+      await db.update(processSteps)
         .set({ stepNumber: i + 1 })
         .where(eq(processSteps.id, stepIds[i]))
         .run();
@@ -40,12 +40,12 @@ export async function POST(
   }
 
   // Create new step — use getNextNumber to avoid count-vs-max discrepancy
-  const existingNumbers = db
+  const existingNumberRows = await db
     .select({ stepNumber: processSteps.stepNumber })
     .from(processSteps)
     .where(eq(processSteps.planId, planId))
-    .all()
-    .map((s) => s.stepNumber);
+    .all();
+  const existingNumbers = existingNumberRows.map((s) => s.stepNumber);
 
   const nextNumber = body.stepNumber ?? getNextNumber(existingNumbers);
 
@@ -61,9 +61,9 @@ export async function POST(
     ccpNumber: null,
   };
 
-  db.insert(processSteps).values(step).run();
+  await db.insert(processSteps).values(step).run();
 
-  logAudit({
+  await logAudit({
     planId,
     entityType: "process_step",
     entityId: stepId,
@@ -82,21 +82,21 @@ export async function PUT(
   const body = await req.json();
   const { id, ...updates } = body;
 
-  const previous = db
+  const previous = await db
     .select()
     .from(processSteps)
     .where(eq(processSteps.id, id))
     .get();
 
-  db.update(processSteps).set(updates).where(eq(processSteps.id, id)).run();
+  await db.update(processSteps).set(updates).where(eq(processSteps.id, id)).run();
 
-  const updated = db
+  const updated = await db
     .select()
     .from(processSteps)
     .where(eq(processSteps.id, id))
     .get();
 
-  logAudit({
+  await logAudit({
     planId,
     entityType: "process_step",
     entityId: id,
@@ -120,16 +120,16 @@ export async function DELETE(
     return NextResponse.json({ error: "stepId required" }, { status: 400 });
   }
 
-  const previous = db
+  const previous = await db
     .select()
     .from(processSteps)
     .where(eq(processSteps.id, stepId))
     .get();
 
-  db.delete(processSteps).where(eq(processSteps.id, stepId)).run();
+  await db.delete(processSteps).where(eq(processSteps.id, stepId)).run();
 
-  // Renumber remaining steps using pure helper
-  const remaining = db
+  // Renumber remaining steps
+  const remaining = await db
     .select()
     .from(processSteps)
     .where(eq(processSteps.planId, planId))
@@ -141,14 +141,14 @@ export async function DELETE(
   const renumbered = remaining.map((s, i) => ({ ...s, stepNumber: i + 1 }));
   for (const step of renumbered) {
     if (step.stepNumber !== remaining.find((r) => r.id === step.id)?.stepNumber) {
-      db.update(processSteps)
+      await db.update(processSteps)
         .set({ stepNumber: step.stepNumber })
         .where(eq(processSteps.id, step.id))
         .run();
     }
   }
 
-  logAudit({
+  await logAudit({
     planId,
     entityType: "process_step",
     entityId: stepId,

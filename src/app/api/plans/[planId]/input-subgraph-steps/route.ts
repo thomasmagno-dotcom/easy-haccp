@@ -20,7 +20,7 @@ export async function POST(
   }
 
   // Verify the inputId belongs to this plan (security check)
-  const input = db
+  const input = await db
     .select({ id: stepInputs.id, stepId: stepInputs.stepId })
     .from(stepInputs)
     .where(eq(stepInputs.id, inputId))
@@ -30,7 +30,7 @@ export async function POST(
     return NextResponse.json({ error: "Input not found" }, { status: 404 });
   }
 
-  const step = db
+  const step = await db
     .select({ planId: processSteps.planId })
     .from(processSteps)
     .where(and(eq(processSteps.id, input.stepId), eq(processSteps.planId, planId)))
@@ -41,21 +41,21 @@ export async function POST(
   }
 
   // Determine next step number using pure helper
-  const existingNumbers = db
+  const existingNumberRows = await db
     .select({ stepNumber: inputSubgraphSteps.stepNumber })
     .from(inputSubgraphSteps)
     .where(eq(inputSubgraphSteps.inputId, inputId))
-    .all()
-    .map((s) => s.stepNumber);
+    .all();
+  const existingNumbers = existingNumberRows.map((s) => s.stepNumber);
 
   const nextNumber = getNextNumber(existingNumbers);
 
   const id = generateId();
-  db.insert(inputSubgraphSteps)
+  await db.insert(inputSubgraphSteps)
     .values({ id, inputId, name: name.trim(), stepNumber: nextNumber, category: category || null })
     .run();
 
-  const created = db
+  const created = await db
     .select()
     .from(inputSubgraphSteps)
     .where(eq(inputSubgraphSteps.id, id))
@@ -82,12 +82,12 @@ export async function PUT(
   if (name !== undefined) updates.name = name.trim();
   if (stepNumber !== undefined) updates.stepNumber = stepNumber;
 
-  db.update(inputSubgraphSteps)
+  await db.update(inputSubgraphSteps)
     .set(updates)
     .where(eq(inputSubgraphSteps.id, id))
     .run();
 
-  const updated = db
+  const updated = await db
     .select()
     .from(inputSubgraphSteps)
     .where(eq(inputSubgraphSteps.id, id))
@@ -111,7 +111,7 @@ export async function DELETE(
   }
 
   // Find inputId so we can renumber siblings
-  const target = db
+  const target = await db
     .select({ inputId: inputSubgraphSteps.inputId })
     .from(inputSubgraphSteps)
     .where(eq(inputSubgraphSteps.id, subgraphStepId))
@@ -122,13 +122,13 @@ export async function DELETE(
   }
 
   // Fetch all siblings (including the one to delete) before deleting
-  const allSiblings = db
+  const allSiblings = await db
     .select()
     .from(inputSubgraphSteps)
     .where(eq(inputSubgraphSteps.inputId, target.inputId))
     .all();
 
-  db.delete(inputSubgraphSteps)
+  await db.delete(inputSubgraphSteps)
     .where(eq(inputSubgraphSteps.id, subgraphStepId))
     .run();
 
@@ -137,7 +137,7 @@ export async function DELETE(
   for (const ss of renumbered) {
     const original = allSiblings.find((s) => s.id === ss.id);
     if (original && original.stepNumber !== ss.stepNumber) {
-      db.update(inputSubgraphSteps)
+      await db.update(inputSubgraphSteps)
         .set({ stepNumber: ss.stepNumber })
         .where(eq(inputSubgraphSteps.id, ss.id))
         .run();

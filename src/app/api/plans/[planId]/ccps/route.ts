@@ -19,15 +19,15 @@ export async function GET(
 ) {
   const { planId } = await params;
 
-  const steps = db
+  const allSteps = await db
     .select()
     .from(processSteps)
     .where(eq(processSteps.planId, planId))
-    .all()
-    .filter((s) => s.isCcp);
+    .all();
+  const steps = allSteps.filter((s) => s.isCcp);
 
-  const result = steps.map((step) => {
-    const ccp = db
+  const result = await Promise.all(steps.map(async (step) => {
+    const ccp = await db
       .select()
       .from(ccps)
       .where(eq(ccps.stepId, step.id))
@@ -35,22 +35,22 @@ export async function GET(
 
     if (!ccp) return { step, ccp: null };
 
-    const limits = db
+    const limits = await db
       .select()
       .from(criticalLimits)
       .where(eq(criticalLimits.ccpId, ccp.id))
       .all();
-    const monitoring = db
+    const monitoring = await db
       .select()
       .from(monitoringProcedures)
       .where(eq(monitoringProcedures.ccpId, ccp.id))
       .all();
-    const corrective = db
+    const corrective = await db
       .select()
       .from(correctiveActions)
       .where(eq(correctiveActions.ccpId, ccp.id))
       .all();
-    const verification = db
+    const verification = await db
       .select()
       .from(verificationProcedures)
       .where(eq(verificationProcedures.ccpId, ccp.id))
@@ -66,7 +66,7 @@ export async function GET(
         verificationProcedures: verification,
       },
     };
-  });
+  }));
 
   return NextResponse.json(result);
 }
@@ -81,20 +81,20 @@ export async function POST(
   const { stepId, hazardDescription, controlMeasureDescription, limits, monitoring, corrective, verification } = body;
 
   // Check if CCP already exists for this step
-  let ccp = db.select().from(ccps).where(eq(ccps.stepId, stepId)).get();
+  let ccp = await db.select().from(ccps).where(eq(ccps.stepId, stepId)).get();
 
   if (ccp) {
     // Update existing
-    db.update(ccps)
+    await db.update(ccps)
       .set({ hazardDescription, controlMeasureDescription })
       .where(eq(ccps.id, ccp.id))
       .run();
 
-    logAudit({ planId, entityType: "ccp", entityId: ccp.id, action: "update", newValue: { hazardDescription, controlMeasureDescription } });
+    await logAudit({ planId, entityType: "ccp", entityId: ccp.id, action: "update", newValue: { hazardDescription, controlMeasureDescription } });
   } else {
     // Create new
     const ccpId = generateId();
-    db.insert(ccps).values({
+    await db.insert(ccps).values({
       id: ccpId,
       stepId,
       hazardDescription,
@@ -102,15 +102,15 @@ export async function POST(
     }).run();
     ccp = { id: ccpId, stepId, hazardDescription, controlMeasureDescription, createdAt: "", updatedAt: "" };
 
-    logAudit({ planId, entityType: "ccp", entityId: ccpId, action: "create", newValue: ccp });
+    await logAudit({ planId, entityType: "ccp", entityId: ccpId, action: "create", newValue: ccp });
   }
 
   // Replace critical limits
-  db.delete(criticalLimits).where(eq(criticalLimits.ccpId, ccp.id)).run();
+  await db.delete(criticalLimits).where(eq(criticalLimits.ccpId, ccp.id)).run();
   if (limits && Array.isArray(limits)) {
     for (const lim of limits) {
       const limId = generateId();
-      db.insert(criticalLimits).values({
+      await db.insert(criticalLimits).values({
         id: limId,
         ccpId: ccp.id,
         parameter: lim.parameter,
@@ -124,10 +124,10 @@ export async function POST(
   }
 
   // Replace monitoring procedures
-  db.delete(monitoringProcedures).where(eq(monitoringProcedures.ccpId, ccp.id)).run();
+  await db.delete(monitoringProcedures).where(eq(monitoringProcedures.ccpId, ccp.id)).run();
   if (monitoring && Array.isArray(monitoring)) {
     for (const mon of monitoring) {
-      db.insert(monitoringProcedures).values({
+      await db.insert(monitoringProcedures).values({
         id: generateId(),
         ccpId: ccp.id,
         what: mon.what,
@@ -140,10 +140,10 @@ export async function POST(
   }
 
   // Replace corrective actions
-  db.delete(correctiveActions).where(eq(correctiveActions.ccpId, ccp.id)).run();
+  await db.delete(correctiveActions).where(eq(correctiveActions.ccpId, ccp.id)).run();
   if (corrective && Array.isArray(corrective)) {
     for (const ca of corrective) {
-      db.insert(correctiveActions).values({
+      await db.insert(correctiveActions).values({
         id: generateId(),
         ccpId: ccp.id,
         deviation: ca.deviation,
@@ -158,10 +158,10 @@ export async function POST(
   }
 
   // Replace verification procedures
-  db.delete(verificationProcedures).where(eq(verificationProcedures.ccpId, ccp.id)).run();
+  await db.delete(verificationProcedures).where(eq(verificationProcedures.ccpId, ccp.id)).run();
   if (verification && Array.isArray(verification)) {
     for (const vp of verification) {
-      db.insert(verificationProcedures).values({
+      await db.insert(verificationProcedures).values({
         id: generateId(),
         ccpId: ccp.id,
         activity: vp.activity,

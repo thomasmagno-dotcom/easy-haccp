@@ -6,8 +6,8 @@
  * so it can be called with either the production DB or an in-memory test DB.
  */
 
-// We accept any Drizzle SQLite DB instance (better-sqlite3 in production,
-// bun:sqlite in tests) via a structural type rather than the concrete DB import.
+// We accept any Drizzle libsql DB instance via a structural type rather than
+// the concrete DB import.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyDb = any;
 
@@ -88,9 +88,9 @@ export interface PlanSnapshot {
  * Returns the full current state of a plan as a nested snapshot object,
  * or null if the plan does not exist.
  */
-export function buildCurrentSnapshot(db: AnyDb, planId: string): PlanSnapshot | null {
+export async function buildCurrentSnapshot(db: AnyDb, planId: string): Promise<PlanSnapshot | null> {
   // 1. Plan record
-  const plan = db
+  const plan = await db
     .select()
     .from(haccpPlans)
     .where(eq(haccpPlans.id, planId))
@@ -99,7 +99,7 @@ export function buildCurrentSnapshot(db: AnyDb, planId: string): PlanSnapshot | 
   if (!plan) return null;
 
   // 2. Process steps (ordered)
-  const steps = db
+  const steps = await db
     .select()
     .from(processSteps)
     .where(eq(processSteps.planId, planId))
@@ -108,9 +108,9 @@ export function buildCurrentSnapshot(db: AnyDb, planId: string): PlanSnapshot | 
 
   // 3. Per-step: hazards + CCP details
   type StepRow = typeof steps[0];
-  const stepsWithData = steps.map((step: StepRow) => {
+  const stepsWithData = await Promise.all(steps.map(async (step: StepRow) => {
     // Step hazards joined to hazard reference
-    const shList = db
+    const shList = await db
       .select({ stepHazard: stepHazards, hazard: hazards })
       .from(stepHazards)
       .innerJoin(hazards, eq(stepHazards.hazardId, hazards.id))
@@ -118,41 +118,41 @@ export function buildCurrentSnapshot(db: AnyDb, planId: string): PlanSnapshot | 
       .all();
 
     type ShRow = { stepHazard: StepHazardRow; hazard: HazardRow };
-    const hazardData: StepHazardWithDetails[] = shList.map((sh: ShRow) => {
-      const measures = db
+    const hazardData: StepHazardWithDetails[] = await Promise.all(shList.map(async (sh: ShRow) => {
+      const measures = await db
         .select()
         .from(controlMeasures)
         .where(eq(controlMeasures.stepHazardId, sh.stepHazard.id))
         .all();
       return { ...sh.stepHazard, hazard: sh.hazard, controlMeasures: measures };
-    });
+    }));
 
     // CCP sub-records (only if step is a CCP)
     let ccpData: CcpWithDetails | null = null;
     if (step.isCcp) {
-      const ccp = db.select().from(ccps).where(eq(ccps.stepId, step.id)).get();
+      const ccp = await db.select().from(ccps).where(eq(ccps.stepId, step.id)).get();
       if (ccp) {
         ccpData = {
           ...ccp,
-          criticalLimits: db.select().from(criticalLimits).where(eq(criticalLimits.ccpId, ccp.id)).all(),
-          monitoringProcedures: db.select().from(monitoringProcedures).where(eq(monitoringProcedures.ccpId, ccp.id)).all(),
-          correctiveActions: db.select().from(correctiveActions).where(eq(correctiveActions.ccpId, ccp.id)).all(),
-          verificationProcedures: db.select().from(verificationProcedures).where(eq(verificationProcedures.ccpId, ccp.id)).all(),
+          criticalLimits: await db.select().from(criticalLimits).where(eq(criticalLimits.ccpId, ccp.id)).all(),
+          monitoringProcedures: await db.select().from(monitoringProcedures).where(eq(monitoringProcedures.ccpId, ccp.id)).all(),
+          correctiveActions: await db.select().from(correctiveActions).where(eq(correctiveActions.ccpId, ccp.id)).all(),
+          verificationProcedures: await db.select().from(verificationProcedures).where(eq(verificationProcedures.ccpId, ccp.id)).all(),
         };
       }
     }
 
     return { ...step, hazards: hazardData, ccp: ccpData };
-  });
+  }));
 
   // 4. Step inputs (bulk fetch, grouped by stepId)
   const allInputRows: StepInputRow[] = steps.length > 0
-    ? db.select().from(stepInputs).where(inArray(stepInputs.stepId, steps.map((s: StepRow) => s.id))).all()
+    ? await db.select().from(stepInputs).where(inArray(stepInputs.stepId, steps.map((s: StepRow) => s.id))).all()
     : [];
 
   // 5. Input subgraph steps (bulk fetch, grouped by inputId)
   const allSubgraphRows: SubgraphStepRow[] = allInputRows.length > 0
-    ? db
+    ? await db
         .select()
         .from(inputSubgraphSteps)
         .where(inArray(inputSubgraphSteps.inputId, allInputRows.map((i) => i.id)))
@@ -182,7 +182,7 @@ export function buildCurrentSnapshot(db: AnyDb, planId: string): PlanSnapshot | 
   }));
 
   // 6. Ingredients with hazard assignments
-  const ingredientRows = db
+  const ingredientRows = await db
     .select()
     .from(ingredients)
     .where(eq(ingredients.planId, planId))
@@ -190,8 +190,8 @@ export function buildCurrentSnapshot(db: AnyDb, planId: string): PlanSnapshot | 
     .all();
 
   type IngRow = typeof ingredientRows[0];
-  const ingredientsWithHazards: IngredientWithHazards[] = ingredientRows.map((ing: IngRow) => {
-    const ihList = db
+  const ingredientsWithHazards: IngredientWithHazards[] = await Promise.all(ingredientRows.map(async (ing: IngRow) => {
+    const ihList = await db
       .select({ ih: ingredientHazards, hazard: hazards })
       .from(ingredientHazards)
       .innerJoin(hazards, eq(ingredientHazards.hazardId, hazards.id))
@@ -201,16 +201,16 @@ export function buildCurrentSnapshot(db: AnyDb, planId: string): PlanSnapshot | 
     type IhRow = { ih: IngredientHazardRow; hazard: HazardRow };
     return {
       ...ing,
-      hazards: ihList.map((r: IhRow) => {
-        const cms = db
+      hazards: await Promise.all(ihList.map(async (r: IhRow) => {
+        const cms = await db
           .select()
           .from(ingredientControlMeasures)
           .where(eq(ingredientControlMeasures.ingredientHazardId, r.ih.id))
           .all();
         return { ...r.ih, hazard: r.hazard, controlMeasures: cms };
-      }),
+      })),
     };
-  });
+  }));
 
   return {
     plan,

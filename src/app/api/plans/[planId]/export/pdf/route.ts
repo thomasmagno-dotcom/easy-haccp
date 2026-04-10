@@ -28,7 +28,7 @@ export async function GET(
 ) {
   const { planId } = await params;
 
-  const plan = db
+  const plan = await db
     .select()
     .from(haccpPlans)
     .where(eq(haccpPlans.id, planId))
@@ -38,50 +38,50 @@ export async function GET(
     return NextResponse.json({ error: "Plan not found" }, { status: 404 });
   }
 
-  const steps = db
+  const steps = await db
     .select()
     .from(processSteps)
     .where(eq(processSteps.planId, planId))
     .orderBy(asc(processSteps.stepNumber))
     .all();
 
-  const stepsWithData = steps.map((step) => {
-    const shList = db
+  const stepsWithData = await Promise.all(steps.map(async (step) => {
+    const shList = await db
       .select({ stepHazard: stepHazards, hazard: hazards })
       .from(stepHazards)
       .innerJoin(hazards, eq(stepHazards.hazardId, hazards.id))
       .where(eq(stepHazards.stepId, step.id))
       .all();
 
-    const hazardData = shList.map((sh) => {
-      const measures = db
+    const hazardData = await Promise.all(shList.map(async (sh) => {
+      const measures = await db
         .select()
         .from(controlMeasures)
         .where(eq(controlMeasures.stepHazardId, sh.stepHazard.id))
         .all();
       return { ...sh.stepHazard, hazard: sh.hazard, controlMeasures: measures };
-    });
+    }));
 
     let ccpData = null;
     if (step.isCcp) {
-      const ccp = db.select().from(ccps).where(eq(ccps.stepId, step.id)).get();
+      const ccp = await db.select().from(ccps).where(eq(ccps.stepId, step.id)).get();
       if (ccp) {
         ccpData = {
           ...ccp,
-          criticalLimits: db.select().from(criticalLimits).where(eq(criticalLimits.ccpId, ccp.id)).all(),
-          monitoringProcedures: db.select().from(monitoringProcedures).where(eq(monitoringProcedures.ccpId, ccp.id)).all(),
-          correctiveActions: db.select().from(correctiveActions).where(eq(correctiveActions.ccpId, ccp.id)).all(),
-          verificationProcedures: db.select().from(verificationProcedures).where(eq(verificationProcedures.ccpId, ccp.id)).all(),
+          criticalLimits: await db.select().from(criticalLimits).where(eq(criticalLimits.ccpId, ccp.id)).all(),
+          monitoringProcedures: await db.select().from(monitoringProcedures).where(eq(monitoringProcedures.ccpId, ccp.id)).all(),
+          correctiveActions: await db.select().from(correctiveActions).where(eq(correctiveActions.ccpId, ccp.id)).all(),
+          verificationProcedures: await db.select().from(verificationProcedures).where(eq(verificationProcedures.ccpId, ccp.id)).all(),
         };
       }
     }
 
     return { ...step, hazards: hazardData, ccp: ccpData };
-  });
+  }));
 
   // Attach step inputs
   const allInputRows = steps.length > 0
-    ? db.select().from(stepInputs).where(inArray(stepInputs.stepId, steps.map((s) => s.id))).all()
+    ? await db.select().from(stepInputs).where(inArray(stepInputs.stepId, steps.map((s) => s.id))).all()
     : [];
   const inputsByStepId = new Map<string, typeof allInputRows>();
   for (const inp of allInputRows) {
@@ -93,15 +93,15 @@ export async function GET(
     inputs: inputsByStepId.get(step.id) || [],
   }));
 
-  const ingredientRows = db
+  const ingredientRows = await db
     .select()
     .from(ingredients)
     .where(eq(ingredients.planId, planId))
     .orderBy(asc(ingredients.createdAt))
     .all();
 
-  const ingredientsWithHazards = ingredientRows.map((ing) => {
-    const ihList = db
+  const ingredientsWithHazards = await Promise.all(ingredientRows.map(async (ing) => {
+    const ihList = await db
       .select({ ih: ingredientHazards, hazard: hazards })
       .from(ingredientHazards)
       .innerJoin(hazards, eq(ingredientHazards.hazardId, hazards.id))
@@ -109,19 +109,19 @@ export async function GET(
       .all();
     return {
       ...ing,
-      hazards: ihList.map((r) => {
-        const cms = db
+      hazards: await Promise.all(ihList.map(async (r) => {
+        const cms = await db
           .select()
           .from(ingredientControlMeasures)
           .where(eq(ingredientControlMeasures.ingredientHazardId, r.ih.id))
           .all();
         return { ...r.ih, hazard: r.hazard, controlMeasures: cms };
-      }),
+      })),
     };
-  });
+  }));
 
   // Pull all published versions for the full amendment logbook
-  const allVersions = db
+  const allVersions = await db
     .select()
     .from(planVersions)
     .where(eq(planVersions.planId, planId))

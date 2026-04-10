@@ -22,7 +22,7 @@ export async function GET(
     return NextResponse.json({ error: "stepId required" }, { status: 400 });
   }
 
-  const assignments = db
+  const assignments = await db
     .select({
       stepHazard: stepHazards,
       hazard: hazards,
@@ -33,8 +33,8 @@ export async function GET(
     .all();
 
   // Get control measures for each step_hazard
-  const result = assignments.map((a) => {
-    const measures = db
+  const result = await Promise.all(assignments.map(async (a) => {
+    const measures = await db
       .select()
       .from(controlMeasures)
       .where(eq(controlMeasures.stepHazardId, a.stepHazard.id))
@@ -45,7 +45,7 @@ export async function GET(
       hazard: a.hazard,
       controlMeasures: measures,
     };
-  });
+  }));
 
   return NextResponse.json(result);
 }
@@ -82,9 +82,9 @@ export async function POST(
       : null,
   };
 
-  db.insert(stepHazards).values(stepHazardData).run();
+  await db.insert(stepHazards).values(stepHazardData).run();
 
-  logAudit({
+  await logAudit({
     planId,
     entityType: "step_hazard",
     entityId: shId,
@@ -96,7 +96,7 @@ export async function POST(
   if (controlMeasureDescriptions && Array.isArray(controlMeasureDescriptions)) {
     for (const cm of controlMeasureDescriptions) {
       const cmId = generateId();
-      db.insert(controlMeasures)
+      await db.insert(controlMeasures)
         .values({
           id: cmId,
           stepHazardId: shId,
@@ -119,7 +119,7 @@ export async function PUT(
   const body = await req.json();
   const { id, controlMeasureUpdates, ...updates } = body;
 
-  const previous = db
+  const previous = await db
     .select()
     .from(stepHazards)
     .where(eq(stepHazards.id, id))
@@ -130,17 +130,17 @@ export async function PUT(
   }
 
   if (Object.keys(updates).length > 0) {
-    db.update(stepHazards).set(updates).where(eq(stepHazards.id, id)).run();
+    await db.update(stepHazards).set(updates).where(eq(stepHazards.id, id)).run();
   }
 
   // Update control measures if provided
   if (controlMeasureUpdates && Array.isArray(controlMeasureUpdates)) {
     // Delete existing and recreate
-    db.delete(controlMeasures)
+    await db.delete(controlMeasures)
       .where(eq(controlMeasures.stepHazardId, id))
       .run();
     for (const cm of controlMeasureUpdates) {
-      db.insert(controlMeasures)
+      await db.insert(controlMeasures)
         .values({
           id: generateId(),
           stepHazardId: id,
@@ -151,13 +151,13 @@ export async function PUT(
     }
   }
 
-  const updated = db
+  const updated = await db
     .select()
     .from(stepHazards)
     .where(eq(stepHazards.id, id))
     .get();
 
-  logAudit({
+  await logAudit({
     planId,
     entityType: "step_hazard",
     entityId: id,
@@ -182,15 +182,15 @@ export async function DELETE(
     return NextResponse.json({ error: "id required" }, { status: 400 });
   }
 
-  const previous = db
+  const previous = await db
     .select()
     .from(stepHazards)
     .where(eq(stepHazards.id, shId))
     .get();
 
-  db.delete(stepHazards).where(eq(stepHazards.id, shId)).run();
+  await db.delete(stepHazards).where(eq(stepHazards.id, shId)).run();
 
-  logAudit({
+  await logAudit({
     planId,
     entityType: "step_hazard",
     entityId: shId,

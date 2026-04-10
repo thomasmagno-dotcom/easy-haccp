@@ -13,7 +13,7 @@ export async function GET(
   const { planId } = await params;
 
   // Build current state snapshot using shared module
-  const snapshot = buildCurrentSnapshot(db, planId);
+  const snapshot = await buildCurrentSnapshot(db, planId);
   if (!snapshot) {
     return NextResponse.json({ error: "Plan not found" }, { status: 404 });
   }
@@ -22,7 +22,7 @@ export async function GET(
   const currentSnapshot = { plan, processSteps: stepsWithInputs, ingredients: ingredientsWithHazards };
 
   // Get the last published snapshot to diff against
-  const lastVersion = db
+  const lastVersion = await db
     .select()
     .from(planVersions)
     .where(eq(planVersions.planId, planId))

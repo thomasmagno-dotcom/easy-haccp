@@ -13,7 +13,7 @@ export default async function PlanLayout({
   params: Promise<{ planId: string }>;
 }) {
   const { planId } = await params;
-  const plan = db
+  const plan = await db
     .select()
     .from(haccpPlans)
     .where(eq(haccpPlans.id, planId))

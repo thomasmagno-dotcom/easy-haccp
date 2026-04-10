@@ -23,7 +23,7 @@ export default async function StepAnalysisPage({
 }) {
   const { planId, stepId } = await params;
 
-  const step = db
+  const step = await db
     .select()
     .from(processSteps)
     .where(eq(processSteps.id, stepId))
@@ -32,7 +32,7 @@ export default async function StepAnalysisPage({
   if (!step) notFound();
 
   // Get all hazards assigned to this step with their reference data
-  const assignments = db
+  const assignments = await db
     .select({
       stepHazard: stepHazards,
       hazard: hazards,
@@ -42,8 +42,8 @@ export default async function StepAnalysisPage({
     .where(eq(stepHazards.stepId, stepId))
     .all();
 
-  const hazardData = assignments.map((a) => {
-    const measures = db
+  const hazardData = await Promise.all(assignments.map(async (a) => {
+    const measures = await db
       .select()
       .from(controlMeasures)
       .where(eq(controlMeasures.stepHazardId, a.stepHazard.id))
@@ -53,34 +53,34 @@ export default async function StepAnalysisPage({
       hazard: a.hazard,
       controlMeasures: measures,
     };
-  });
+  }));
 
   // Get CCP data if this step is a CCP
   let ccpData = null;
   if (step.isCcp) {
-    const ccp = db
+    const ccp = await db
       .select()
       .from(ccps)
       .where(eq(ccps.stepId, stepId))
       .get();
 
     if (ccp) {
-      const limits = db
+      const limits = await db
         .select()
         .from(criticalLimits)
         .where(eq(criticalLimits.ccpId, ccp.id))
         .all();
-      const monitoring = db
+      const monitoring = await db
         .select()
         .from(monitoringProcedures)
         .where(eq(monitoringProcedures.ccpId, ccp.id))
         .all();
-      const corrective = db
+      const corrective = await db
         .select()
         .from(correctiveActions)
         .where(eq(correctiveActions.ccpId, ccp.id))
         .all();
-      const verification = db
+      const verification = await db
         .select()
         .from(verificationProcedures)
         .where(eq(verificationProcedures.ccpId, ccp.id))
@@ -97,7 +97,7 @@ export default async function StepAnalysisPage({
   }
 
   // Get all available hazards for the picker
-  const allHazards = db.select().from(hazards).all();
+  const allHazards = await db.select().from(hazards).all();
 
   return (
     <StepAnalysis

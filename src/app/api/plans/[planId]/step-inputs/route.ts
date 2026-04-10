@@ -17,11 +17,11 @@ export async function POST(
   }
 
   const id = generateId();
-  db.insert(stepInputs)
+  await db.insert(stepInputs)
     .values({ id, stepId, name: name.trim(), type: type || null, notes: notes || null })
     .run();
 
-  const created = db.select().from(stepInputs).where(eq(stepInputs.id, id)).get();
+  const created = await db.select().from(stepInputs).where(eq(stepInputs.id, id)).get();
   return NextResponse.json(created, { status: 201 });
 }
 
@@ -36,6 +36,6 @@ export async function DELETE(
     return NextResponse.json({ error: "inputId required" }, { status: 400 });
   }
 
-  db.delete(stepInputs).where(eq(stepInputs.id, inputId)).run();
+  await db.delete(stepInputs).where(eq(stepInputs.id, inputId)).run();
   return NextResponse.json({ ok: true });
 }

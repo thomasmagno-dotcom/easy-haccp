@@ -26,7 +26,7 @@ export async function POST(
   const { planId } = await params;
 
   // ── Fetch the source plan ────────────────────────────────────
-  const sourcePlan = db.select().from(haccpPlans).where(eq(haccpPlans.id, planId)).get();
+  const sourcePlan = await db.select().from(haccpPlans).where(eq(haccpPlans.id, planId)).get();
   if (!sourcePlan) {
     return NextResponse.json({ error: "Plan not found" }, { status: 404 });
   }
@@ -35,7 +35,7 @@ export async function POST(
   const newPlanName = `Copy of ${sourcePlan.name}`;
 
   // ── Duplicate the plan header ────────────────────────────────
-  db.insert(haccpPlans).values({
+  await db.insert(haccpPlans).values({
     id: newPlanId,
     name: newPlanName,
     facilityName: sourcePlan.facilityName,
@@ -47,7 +47,7 @@ export async function POST(
     currentVersion: 0,
   }).run();
 
-  logAudit({
+  await logAudit({
     planId: newPlanId,
     entityType: "plan",
     entityId: newPlanId,
@@ -56,7 +56,7 @@ export async function POST(
   });
 
   // ── Fetch & duplicate process steps ─────────────────────────
-  const sourceSteps = db
+  const sourceSteps = await db
     .select()
     .from(processSteps)
     .where(eq(processSteps.planId, planId))
@@ -66,7 +66,7 @@ export async function POST(
   for (const step of sourceSteps) {
     const newStepId = generateId();
 
-    db.insert(processSteps).values({
+    await db.insert(processSteps).values({
       id: newStepId,
       planId: newPlanId,
       stepNumber: step.stepNumber,
@@ -79,7 +79,7 @@ export async function POST(
     }).run();
 
     // ── Step hazards ──────────────────────────────────────────
-    const sourceStepHazards = db
+    const sourceStepHazards = await db
       .select()
       .from(stepHazards)
       .where(eq(stepHazards.stepId, step.id))
@@ -88,7 +88,7 @@ export async function POST(
     for (const sh of sourceStepHazards) {
       const newShId = generateId();
 
-      db.insert(stepHazards).values({
+      await db.insert(stepHazards).values({
         id: newShId,
         stepId: newStepId,
         hazardId: sh.hazardId,
@@ -100,14 +100,14 @@ export async function POST(
       }).run();
 
       // Control measures per step-hazard
-      const sourceCms = db
+      const sourceCms = await db
         .select()
         .from(controlMeasures)
         .where(eq(controlMeasures.stepHazardId, sh.id))
         .all();
 
       for (const cm of sourceCms) {
-        db.insert(controlMeasures).values({
+        await db.insert(controlMeasures).values({
           id: generateId(),
           stepHazardId: newShId,
           description: cm.description,
@@ -118,11 +118,11 @@ export async function POST(
 
     // ── CCP details ───────────────────────────────────────────
     if (step.isCcp) {
-      const sourceCcp = db.select().from(ccps).where(eq(ccps.stepId, step.id)).get();
+      const sourceCcp = await db.select().from(ccps).where(eq(ccps.stepId, step.id)).get();
       if (sourceCcp) {
         const newCcpId = generateId();
 
-        db.insert(ccps).values({
+        await db.insert(ccps).values({
           id: newCcpId,
           stepId: newStepId,
           hazardDescription: sourceCcp.hazardDescription,
@@ -130,9 +130,9 @@ export async function POST(
         }).run();
 
         // Critical limits
-        const sourceLimits = db.select().from(criticalLimits).where(eq(criticalLimits.ccpId, sourceCcp.id)).all();
+        const sourceLimits = await db.select().from(criticalLimits).where(eq(criticalLimits.ccpId, sourceCcp.id)).all();
         for (const lim of sourceLimits) {
-          db.insert(criticalLimits).values({
+          await db.insert(criticalLimits).values({
             id: generateId(),
             ccpId: newCcpId,
             parameter: lim.parameter,
@@ -145,9 +145,9 @@ export async function POST(
         }
 
         // Monitoring procedures
-        const sourceMons = db.select().from(monitoringProcedures).where(eq(monitoringProcedures.ccpId, sourceCcp.id)).all();
+        const sourceMons = await db.select().from(monitoringProcedures).where(eq(monitoringProcedures.ccpId, sourceCcp.id)).all();
         for (const mon of sourceMons) {
-          db.insert(monitoringProcedures).values({
+          await db.insert(monitoringProcedures).values({
             id: generateId(),
             ccpId: newCcpId,
             what: mon.what,
@@ -159,9 +159,9 @@ export async function POST(
         }
 
         // Corrective actions
-        const sourceCas = db.select().from(correctiveActions).where(eq(correctiveActions.ccpId, sourceCcp.id)).all();
+        const sourceCas = await db.select().from(correctiveActions).where(eq(correctiveActions.ccpId, sourceCcp.id)).all();
         for (const ca of sourceCas) {
-          db.insert(correctiveActions).values({
+          await db.insert(correctiveActions).values({
             id: generateId(),
             ccpId: newCcpId,
             deviation: ca.deviation,
@@ -175,9 +175,9 @@ export async function POST(
         }
 
         // Verification procedures
-        const sourceVers = db.select().from(verificationProcedures).where(eq(verificationProcedures.ccpId, sourceCcp.id)).all();
+        const sourceVers = await db.select().from(verificationProcedures).where(eq(verificationProcedures.ccpId, sourceCcp.id)).all();
         for (const ver of sourceVers) {
-          db.insert(verificationProcedures).values({
+          await db.insert(verificationProcedures).values({
             id: generateId(),
             ccpId: newCcpId,
             activity: ver.activity,
@@ -191,9 +191,9 @@ export async function POST(
     }
 
     // ── Step inputs ───────────────────────────────────────────
-    const sourceInputs = db.select().from(stepInputs).where(eq(stepInputs.stepId, step.id)).all();
+    const sourceInputs = await db.select().from(stepInputs).where(eq(stepInputs.stepId, step.id)).all();
     for (const inp of sourceInputs) {
-      db.insert(stepInputs).values({
+      await db.insert(stepInputs).values({
         id: generateId(),
         stepId: newStepId,
         name: inp.name,
@@ -204,7 +204,7 @@ export async function POST(
   }
 
   // ── Fetch & duplicate ingredients ───────────────────────────
-  const sourceIngredients = db
+  const sourceIngredients = await db
     .select()
     .from(ingredients)
     .where(eq(ingredients.planId, planId))
@@ -214,7 +214,7 @@ export async function POST(
   for (const ing of sourceIngredients) {
     const newIngId = generateId();
 
-    db.insert(ingredients).values({
+    await db.insert(ingredients).values({
       id: newIngId,
       planId: newPlanId,
       name: ing.name,
@@ -223,7 +223,7 @@ export async function POST(
       supplier: ing.supplier ?? null,
     }).run();
 
-    const sourceIngHazards = db
+    const sourceIngHazards = await db
       .select()
       .from(ingredientHazards)
       .where(eq(ingredientHazards.ingredientId, ing.id))
@@ -232,7 +232,7 @@ export async function POST(
     for (const ih of sourceIngHazards) {
       const newIhId = generateId();
 
-      db.insert(ingredientHazards).values({
+      await db.insert(ingredientHazards).values({
         id: newIhId,
         ingredientId: newIngId,
         hazardId: ih.hazardId,
@@ -242,14 +242,14 @@ export async function POST(
         likelihoodOverride: ih.likelihoodOverride ?? null,
       }).run();
 
-      const sourceIngCms = db
+      const sourceIngCms = await db
         .select()
         .from(ingredientControlMeasures)
         .where(eq(ingredientControlMeasures.ingredientHazardId, ih.id))
         .all();
 
       for (const cm of sourceIngCms) {
-        db.insert(ingredientControlMeasures).values({
+        await db.insert(ingredientControlMeasures).values({
           id: generateId(),
           ingredientHazardId: newIhId,
           description: cm.description,

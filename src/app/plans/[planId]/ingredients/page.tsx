@@ -12,15 +12,15 @@ export default async function IngredientsPage({
   const { planId } = await params;
 
   // Fetch all ingredients with their hazard assignments
-  const rows = db
+  const rows = await db
     .select()
     .from(ingredients)
     .where(eq(ingredients.planId, planId))
     .orderBy(asc(ingredients.createdAt))
     .all();
 
-  const ingredientList: Ingredient[] = rows.map((ing) => {
-    const ihList = db
+  const ingredientList: Ingredient[] = await Promise.all(rows.map(async (ing) => {
+    const ihList = await db
       .select({ ih: ingredientHazards, hazard: hazards })
       .from(ingredientHazards)
       .innerJoin(hazards, eq(ingredientHazards.hazardId, hazards.id))
@@ -29,19 +29,19 @@ export default async function IngredientsPage({
 
     return {
       ...ing,
-      hazards: ihList.map((r) => {
-        const cms = db
+      hazards: await Promise.all(ihList.map(async (r) => {
+        const cms = await db
           .select()
           .from(ingredientControlMeasures)
           .where(eq(ingredientControlMeasures.ingredientHazardId, r.ih.id))
           .all();
         return { ...r.ih, hazard: r.hazard, controlMeasures: cms };
-      }),
+      })),
     };
-  });
+  }));
 
   // Fetch all hazards for the picker
-  const allHazards: Hazard[] = db
+  const allHazards: Hazard[] = await db
     .select()
     .from(hazards)
     .orderBy(asc(hazards.type), asc(hazards.name))

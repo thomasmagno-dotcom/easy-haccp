@@ -955,7 +955,7 @@ export const BABY_CARROT_STEPS: ProcessStepTemplate[] = [
 
 export async function seedHazards(): Promise<void> {
   // Get existing hazard names so we can skip duplicates
-  const existing = db.select().from(schema.hazards).all();
+  const existing = await db.select().from(schema.hazards).all();
   const existingNames = new Set(existing.map((h) => h.name));
 
   const toInsert = HAZARD_SEEDS.filter((h) => !existingNames.has(h.name));
@@ -968,7 +968,7 @@ export async function seedHazards(): Promise<void> {
   console.log(`Adding ${toInsert.length} new hazards (${existing.length} already exist)...`);
 
   for (const hazard of toInsert) {
-    db.insert(schema.hazards)
+    await db.insert(schema.hazards)
       .values({
         id: generateId(),
         name: hazard.name,
