@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { processSteps, stepHazards, stepInputs, inputSubgraphSteps } from "@/lib/db/schema";
+import { processSteps, stepHazards, stepInputs, inputSubgraphSteps, stepOutputs } from "@/lib/db/schema";
 import { eq, asc, sql, inArray } from "drizzle-orm";
 import { ProcessFlowEditor } from "@/components/process-flow/ProcessFlowEditor";
 
@@ -56,6 +56,17 @@ export default async function ProcessFlowPage({
     subgraphStepsByInput[ss.inputId].push(ss);
   }
 
+  // Step outputs
+  const outputRows = steps.length > 0
+    ? await db.select().from(stepOutputs).where(inArray(stepOutputs.stepId, steps.map((s) => s.id))).all()
+    : [];
+
+  const outputsByStep: Record<string, typeof outputRows> = {};
+  for (const out of outputRows) {
+    if (!outputsByStep[out.stepId]) outputsByStep[out.stepId] = [];
+    outputsByStep[out.stepId].push(out);
+  }
+
   return (
     <ProcessFlowEditor
       planId={planId}
@@ -63,6 +74,7 @@ export default async function ProcessFlowPage({
       hazardCounts={hazardCountMap}
       initialInputs={inputsByStep}
       initialSubgraphSteps={subgraphStepsByInput}
+      initialOutputsByStep={outputsByStep}
     />
   );
 }

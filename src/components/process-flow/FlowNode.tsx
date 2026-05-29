@@ -37,6 +37,16 @@ interface SubgraphStep {
   createdAt: string;
 }
 
+interface StepOutput {
+  id: string;
+  stepId: string;
+  name: string;
+  outputType: string;
+  description: string | null;
+  isCcp: boolean;
+  ccpNumber: string | null;
+}
+
 interface Props {
   step: ProcessStep;
   hazardCount: number;
@@ -49,6 +59,7 @@ interface Props {
   onAddSubgraphStep: (inputId: string, name: string, category: string) => void;
   onDeleteSubgraphStep: (inputId: string, subgraphStepId: string) => void;
   onMoveSubgraphStep: (inputId: string, subgraphStepId: string, direction: "up" | "down") => void;
+  outputs: StepOutput[];
 }
 
 // ── Style config ──────────────────────────────────────────────────────────────
@@ -85,6 +96,14 @@ const SUBSTEP_CATEGORY_CONFIG: Record<string, { icon: string; label: string; bg:
 };
 
 const INPUT_TYPE_ORDER = ["water", "chemical", "material", "energy", "other"];
+
+const OUTPUT_TYPE_CONFIG: Record<string, { border: string; header: string; icon: string; label: string }> = {
+  primary_product:  { border: "border-teal-200",    header: "bg-teal-100 text-teal-700",     icon: "✅", label: "Primary Product"   },
+  waste:            { border: "border-neutral-300",  header: "bg-neutral-100 text-neutral-600",icon: "🗑",  label: "Waste"             },
+  rejected_product: { border: "border-red-200",      header: "bg-red-100 text-red-700",       icon: "❌", label: "Rejected"          },
+  water_discharge:  { border: "border-blue-200",     header: "bg-blue-100 text-blue-700",     icon: "💧", label: "Water Discharge"   },
+  other:            { border: "border-purple-200",   header: "bg-purple-100 text-purple-700", icon: "◦",  label: "Other"             },
+};
 
 // ── SubgraphStepRow ───────────────────────────────────────────────────────────
 
@@ -272,6 +291,7 @@ export function FlowNode({
   inputs, subgraphStepsByInput,
   onAddInput, onDeleteInput,
   onAddSubgraphStep, onDeleteSubgraphStep, onMoveSubgraphStep,
+  outputs,
 }: Props) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: step.id });
   const [showInputForm, setShowInputForm] = useState(false);
@@ -450,6 +470,48 @@ export function FlowNode({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
+      </div>
+
+      {/* ── Right connector arrow ─────────────────────────────────────── */}
+      <div className="w-12 shrink-0 flex items-center justify-center self-stretch">
+        {outputs.length > 0 && (
+          <svg width="48" height="14" viewBox="0 0 48 14" className="text-neutral-400">
+            <line x1="0" y1="7" x2="36" y2="7" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M32 3 L44 7 L32 11" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+          </svg>
+        )}
+      </div>
+
+      {/* ── Right zone: outputs ───────────────────────────────────────── */}
+      <div className="w-52 shrink-0 flex flex-col gap-2 pl-2 self-stretch justify-center">
+        {outputs.map((out) => {
+          const cfg = OUTPUT_TYPE_CONFIG[out.outputType] ?? OUTPUT_TYPE_CONFIG.other;
+          return (
+            <Link
+              key={out.id}
+              href={`/plans/${planId}/steps/${step.id}/outputs/${out.id}`}
+              className={cn("rounded-lg border-2 overflow-hidden shadow-sm hover:shadow-md transition-shadow", cfg.border)}
+            >
+              {/* Type header */}
+              <div className={cn("px-2 py-1 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1", cfg.header)}>
+                <span>{cfg.icon}</span>
+                <span className="truncate">{cfg.label}</span>
+                {out.isCcp && (
+                  <span className="ml-auto shrink-0 bg-red-600 text-white text-[9px] font-bold px-1 rounded">
+                    {out.ccpNumber || "CCP"}
+                  </span>
+                )}
+              </div>
+              {/* Output name */}
+              <div className="bg-white px-2 py-1.5">
+                <p className="text-xs font-semibold text-neutral-700 truncate leading-tight">{out.name}</p>
+                {out.description && (
+                  <p className="text-[10px] text-neutral-400 truncate mt-0.5">{out.description}</p>
+                )}
+              </div>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

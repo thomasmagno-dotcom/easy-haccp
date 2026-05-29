@@ -57,12 +57,23 @@ interface SubgraphStep {
   createdAt: string;
 }
 
+interface StepOutput {
+  id: string;
+  stepId: string;
+  name: string;
+  outputType: string;
+  description: string | null;
+  isCcp: boolean;
+  ccpNumber: string | null;
+}
+
 interface Props {
   planId: string;
   initialSteps: ProcessStep[];
   hazardCounts: Record<string, number>;
   initialInputs: Record<string, StepInput[]>;
   initialSubgraphSteps: Record<string, SubgraphStep[]>;
+  initialOutputsByStep?: Record<string, StepOutput[]>;
 }
 
 export function ProcessFlowEditor({
@@ -71,10 +82,12 @@ export function ProcessFlowEditor({
   hazardCounts,
   initialInputs,
   initialSubgraphSteps,
+  initialOutputsByStep,
 }: Props) {
   const [steps, setSteps] = useState(initialSteps);
   const [inputsByStep, setInputsByStep] = useState<Record<string, StepInput[]>>(initialInputs);
   const [subgraphStepsByInput, setSubgraphStepsByInput] = useState<Record<string, SubgraphStep[]>>(initialSubgraphSteps);
+  const [outputsByStep, setOutputsByStep] = useState<Record<string, StepOutput[]>>(initialOutputsByStep ?? {});
   const [newStepName, setNewStepName] = useState("");
   const [newStepCategory, setNewStepCategory] = useState("processing");
   const [adding, setAdding] = useState(false);
@@ -128,6 +141,7 @@ export function ProcessFlowEditor({
     if (res.ok) {
       setSteps((prev) => prev.filter((s) => s.id !== stepId).map((s, i) => ({ ...s, stepNumber: i + 1 })));
       setInputsByStep((prev) => { const next = { ...prev }; delete next[stepId]; return next; });
+      setOutputsByStep((prev) => { const next = { ...prev }; delete next[stepId]; return next; });
     }
   }
 
@@ -234,15 +248,18 @@ export function ProcessFlowEditor({
           <span className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-sm bg-green-100 border border-green-300" /> Input subgraph
           </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-sm bg-teal-100 border border-teal-300" /> Output
+          </span>
         </div>
       </div>
 
       {/*
-        Layout: each row = [input subgraphs: w-52] [connector: w-12] [step box: flex-1]
-        The w-52 + w-12 = 256px (w-64) left offset is replicated on the vertical arrows
-        and the "Add step" control so they align under the step box column.
+        Layout: [inputs: w-52] [left arrow: w-12] [step box: flex-1] [right arrow: w-12] [outputs: w-52]
+        The w-52 + w-12 = w-64 left offset and matching right spacer keep vertical arrows
+        and the "Add step" control centered under the step box column.
       */}
-      <div className="flex flex-col w-full max-w-4xl mx-auto">
+      <div className="flex flex-col w-full max-w-6xl mx-auto">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -266,8 +283,9 @@ export function ProcessFlowEditor({
                   onAddSubgraphStep={(inputId, name, category) => addSubgraphStep(inputId, name, category)}
                   onDeleteSubgraphStep={(inputId, ssId) => deleteSubgraphStep(inputId, ssId)}
                   onMoveSubgraphStep={(inputId, ssId, dir) => moveSubgraphStep(inputId, ssId, dir)}
+                  outputs={(outputsByStep ?? {})[step.id] ?? []}
                 />
-                {/* Arrow connector — offset to align under the step box */}
+                {/* Arrow connector — centered under the step box */}
                 {index < steps.length - 1 && (
                   <div className="flex py-0.5">
                     <div className="w-64 shrink-0" />
@@ -277,6 +295,7 @@ export function ProcessFlowEditor({
                         <path d="M6 8L0 0h12z" fill="currentColor" />
                       </svg>
                     </div>
+                    <div className="w-64 shrink-0" />
                   </div>
                 )}
               </div>
@@ -284,7 +303,7 @@ export function ProcessFlowEditor({
           </SortableContext>
         </DndContext>
 
-        {/* Terminal / Add step — offset to align under step box */}
+        {/* Terminal / Add step — centered under step box */}
         <div className="mt-2 flex">
           <div className="w-64 shrink-0" />
           <div className="flex-1 flex flex-col items-center">
@@ -332,6 +351,7 @@ export function ProcessFlowEditor({
               </button>
             )}
           </div>
+          <div className="w-64 shrink-0" />
         </div>
       </div>
     </div>
