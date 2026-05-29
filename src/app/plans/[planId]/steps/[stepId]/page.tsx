@@ -9,6 +9,7 @@ import {
   monitoringProcedures,
   correctiveActions,
   verificationProcedures,
+  stepOutputs,
 } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
@@ -97,7 +98,13 @@ export default async function StepAnalysisPage({
   }
 
   // Get all available hazards for the picker
-  const allHazards = await db.select().from(hazards).all();
+  const [allHazards, rawOutputs] = await Promise.all([
+    db.select().from(hazards).all(),
+    db.select().from(stepOutputs).where(eq(stepOutputs.stepId, stepId)).all(),
+  ]);
+  // Drizzle returns outputType as string; cast to the OutputType union
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const outputs = rawOutputs as any[];
 
   return (
     <StepAnalysis
@@ -106,6 +113,7 @@ export default async function StepAnalysisPage({
       hazardAssignments={hazardData}
       ccpData={ccpData}
       availableHazards={allHazards}
+      stepOutputs={outputs}
     />
   );
 }

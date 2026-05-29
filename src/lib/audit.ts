@@ -14,7 +14,10 @@ export type EntityType =
   | "monitoring_procedure"
   | "corrective_action"
   | "verification_procedure"
-  | "ingredient";
+  | "ingredient"
+  | "step_output"
+  | "output_hazard"
+  | "output_ccp";
 
 interface AuditOptions {
   planId: string;

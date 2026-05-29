@@ -290,6 +290,150 @@ export const planVersions = sqliteTable("plan_versions", {
   changeLog: text("change_log"),
 });
 
+// ─── Step Outputs ────────────────────────────────────────────────────────────
+
+export const stepOutputs = sqliteTable("step_outputs", {
+  id: text("id").primaryKey(),
+  stepId: text("step_id")
+    .notNull()
+    .references(() => processSteps.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  outputType: text("output_type").notNull(), // primary_product | waste | rejected_product | water_discharge | other
+  description: text("description"),
+  isCcp: integer("is_ccp", { mode: "boolean" }).notNull().default(false),
+  ccpNumber: text("ccp_number"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+// ─── Output-Hazard Junction ──────────────────────────────────────────────────
+
+export const outputHazards = sqliteTable("output_hazards", {
+  id: text("id").primaryKey(),
+  outputId: text("output_id")
+    .notNull()
+    .references(() => stepOutputs.id, { onDelete: "cascade" }),
+  hazardId: text("hazard_id")
+    .notNull()
+    .references(() => hazards.id),
+  isSignificant: integer("is_significant", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  justification: text("justification"),
+  severityOverride: text("severity_override"),
+  likelihoodOverride: text("likelihood_override"),
+  decisionTreeAnswers: text("decision_tree_answers"), // JSON: { q1, q2, q3, q4, result }
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+// ─── Output Control Measures ─────────────────────────────────────────────────
+
+export const outputControlMeasures = sqliteTable("output_control_measures", {
+  id: text("id").primaryKey(),
+  outputHazardId: text("output_hazard_id")
+    .notNull()
+    .references(() => outputHazards.id, { onDelete: "cascade" }),
+  description: text("description").notNull(),
+  type: text("type"), // preventive | eliminative | reductive | prp | external
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+// ─── Output CCPs ─────────────────────────────────────────────────────────────
+
+export const outputCcps = sqliteTable("output_ccps", {
+  id: text("id").primaryKey(),
+  outputId: text("output_id")
+    .notNull()
+    .references(() => stepOutputs.id, { onDelete: "cascade" }),
+  hazardDescription: text("hazard_description").notNull(),
+  controlMeasureDescription: text("control_measure_description").notNull(),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+// ─── Output Critical Limits ──────────────────────────────────────────────────
+
+export const outputCriticalLimits = sqliteTable("output_critical_limits", {
+  id: text("id").primaryKey(),
+  outputCcpId: text("output_ccp_id")
+    .notNull()
+    .references(() => outputCcps.id, { onDelete: "cascade" }),
+  parameter: text("parameter").notNull(),
+  minimum: text("minimum"),
+  maximum: text("maximum"),
+  target: text("target"),
+  unit: text("unit"),
+  scientificBasis: text("scientific_basis"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+// ─── Output Monitoring Procedures ────────────────────────────────────────────
+
+export const outputMonitoringProcedures = sqliteTable("output_monitoring_procedures", {
+  id: text("id").primaryKey(),
+  outputCcpId: text("output_ccp_id")
+    .notNull()
+    .references(() => outputCcps.id, { onDelete: "cascade" }),
+  what: text("what").notNull(),
+  how: text("how").notNull(),
+  frequency: text("frequency").notNull(),
+  who: text("who").notNull(),
+  recordForm: text("record_form"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+// ─── Output Corrective Actions ────────────────────────────────────────────────
+
+export const outputCorrectiveActions = sqliteTable("output_corrective_actions", {
+  id: text("id").primaryKey(),
+  outputCcpId: text("output_ccp_id")
+    .notNull()
+    .references(() => outputCcps.id, { onDelete: "cascade" }),
+  deviation: text("deviation").notNull(),
+  immediateAction: text("immediate_action").notNull(),
+  productDisposition: text("product_disposition").notNull(),
+  rootCauseAnalysis: text("root_cause_analysis"),
+  preventiveAction: text("preventive_action"),
+  responsiblePerson: text("responsible_person").notNull(),
+  recordForm: text("record_form"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+// ─── Output Verification Procedures ─────────────────────────────────────────
+
+export const outputVerificationProcedures = sqliteTable("output_verification_procedures", {
+  id: text("id").primaryKey(),
+  outputCcpId: text("output_ccp_id")
+    .notNull()
+    .references(() => outputCcps.id, { onDelete: "cascade" }),
+  activity: text("activity").notNull(),
+  frequency: text("frequency").notNull(),
+  responsiblePerson: text("responsible_person").notNull(),
+  method: text("method"),
+  recordReference: text("record_reference"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
 // ─── Audit Log ──────────────────────────────────────────────────────────────
 
 export const auditLog = sqliteTable("audit_log", {

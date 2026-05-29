@@ -135,6 +135,101 @@ export interface Ingredient {
   hazards: IngredientHazardAssignment[];
 }
 
+export type OutputType =
+  | "primary_product"
+  | "waste"
+  | "rejected_product"
+  | "water_discharge"
+  | "other";
+
+export interface StepOutput {
+  id: string;
+  stepId: string;
+  name: string;
+  outputType: OutputType;
+  description: string | null;
+  isCcp: boolean;
+  ccpNumber: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OutputHazardAssignment {
+  id: string;
+  outputId: string;
+  hazardId: string;
+  isSignificant: boolean;
+  justification: string | null;
+  severityOverride: string | null;
+  likelihoodOverride: string | null;
+  decisionTreeAnswers: string | null;
+  createdAt: string;
+  hazard: Hazard;
+  controlMeasures: OutputControlMeasure[];
+}
+
+export interface OutputControlMeasure {
+  id: string;
+  outputHazardId: string;
+  description: string;
+  type: string | null;
+  createdAt: string;
+}
+
+export interface OutputCcpData {
+  id: string;
+  outputId: string;
+  hazardDescription: string;
+  controlMeasureDescription: string;
+  criticalLimits: OutputCriticalLimit[];
+  monitoringProcedures: OutputMonitoringProcedure[];
+  correctiveActions: OutputCorrectiveAction[];
+  verificationProcedures: OutputVerificationProcedure[];
+}
+
+export interface OutputCriticalLimit {
+  id: string;
+  outputCcpId: string;
+  parameter: string;
+  minimum: string | null;
+  maximum: string | null;
+  target: string | null;
+  unit: string | null;
+  scientificBasis: string | null;
+}
+
+export interface OutputMonitoringProcedure {
+  id: string;
+  outputCcpId: string;
+  what: string;
+  how: string;
+  frequency: string;
+  who: string;
+  recordForm: string | null;
+}
+
+export interface OutputCorrectiveAction {
+  id: string;
+  outputCcpId: string;
+  deviation: string;
+  immediateAction: string;
+  productDisposition: string;
+  rootCauseAnalysis: string | null;
+  preventiveAction: string | null;
+  responsiblePerson: string;
+  recordForm: string | null;
+}
+
+export interface OutputVerificationProcedure {
+  id: string;
+  outputCcpId: string;
+  activity: string;
+  frequency: string;
+  responsiblePerson: string;
+  method: string | null;
+  recordReference: string | null;
+}
+
 export interface DecisionTreeAnswers {
   q1: boolean | null; // Does a control measure exist?
   q2: boolean | null; // Is step designed to eliminate/reduce?

@@ -9,11 +9,13 @@ import { RiskMatrix } from "./RiskMatrix";
 import { DecisionTreeSection } from "./DecisionTreeSection";
 import { ControlMeasuresSection } from "./ControlMeasuresSection";
 import { CcpDetailsSection } from "./CcpDetailsSection";
+import { StepOutputsSection } from "./StepOutputsSection";
 import type {
   ProcessStep,
   StepHazardAssignment,
   CcpData,
   Hazard,
+  StepOutput,
 } from "@/lib/types";
 
 interface Props {
@@ -22,6 +24,7 @@ interface Props {
   hazardAssignments: StepHazardAssignment[];
   ccpData: CcpData | null;
   availableHazards: Hazard[];
+  stepOutputs: StepOutput[];
 }
 
 export function StepAnalysis({
@@ -30,6 +33,7 @@ export function StepAnalysis({
   hazardAssignments: initialAssignments,
   ccpData,
   availableHazards,
+  stepOutputs,
 }: Props) {
   const [assignments, setAssignments] = useState(initialAssignments);
   const [isCcp, setIsCcp] = useState(step.isCcp ?? false);
@@ -189,6 +193,21 @@ export function StepAnalysis({
           </section>
         </>
       )}
+
+      <Separator />
+
+      {/* Step Outputs */}
+      <section>
+        <h3 className="text-base font-semibold mb-1">Step Outputs</h3>
+        <p className="text-xs text-neutral-500 mb-4">
+          Define what leaves this step. Each output can have its own independent hazard analysis, risk assessment, and control measures.
+        </p>
+        <StepOutputsSection
+          planId={planId}
+          stepId={step.id}
+          outputs={stepOutputs}
+        />
+      </section>
     </div>
   );
 }
