@@ -1,19 +1,36 @@
 /**
  * Pure decision-tree logic for CCP designation — no DB access, fully unit-testable.
  *
- * The Codex decision tree has four questions:
- *   Q1: Does a control measure exist for the identified hazard?
- *   Q2: Is this step specifically designed to eliminate or reduce the hazard to an acceptable level?
- *   Q3: Could contamination occur at this step above acceptable levels?
- *   Q4: Will a subsequent step eliminate or reduce the hazard to an acceptable level?
+ * Implements the updated Codex Alimentarius CCP Decision Tree
+ * (CXC 1-1969 Rev. 2020 / CCFH 2022 adoption).
  *
- * Result rules:
- *   Q1 = No  →  not_ccp  (no control measure — modify the step)
- *   Q1 = Yes, Q2 = Yes  →  ccp
- *   Q1 = Yes, Q2 = No,  Q3 = No   →  not_ccp
- *   Q1 = Yes, Q2 = No,  Q3 = Yes, Q4 = Yes  →  not_ccp  (subsequent step handles it)
- *   Q1 = Yes, Q2 = No,  Q3 = Yes, Q4 = No   →  ccp
- *   Any incomplete path  →  null
+ * Q1: Can the significant hazard be controlled to an acceptable level at this
+ *     step by prerequisite programs (e.g., GHPs)?
+ *     → Yes = controlled by GHPs/PRPs (result: "prp")
+ *     → No  = proceed to Q2
+ *
+ * Q2: Do specific control measures for the identified significant hazard
+ *     exist at this step?
+ *     → No  = not_ccp (no specific control here; address in process design)
+ *     → Yes = proceed to Q3
+ *
+ * Q3: Will a subsequent step prevent or eliminate the identified significant
+ *     hazard or reduce it to an acceptable level?
+ *     → Yes = not_ccp (identify and designate that subsequent step as the CCP)
+ *     → No  = proceed to Q4
+ *
+ * Q4: Can this step specifically prevent or eliminate the identified significant
+ *     hazard or reduce it to an acceptable level?
+ *     → Yes = CCP
+ *     → No  = modify (process/product must be modified to implement a control measure)
+ *
+ * Result map:
+ *   Q1 = Yes                               → "prp"     (GHPs/PRPs sufficient)
+ *   Q1 = No, Q2 = No                       → "not_ccp" (no specific control at this step)
+ *   Q1 = No, Q2 = Yes, Q3 = Yes            → "not_ccp" (subsequent step controls it)
+ *   Q1 = No, Q2 = Yes, Q3 = No, Q4 = Yes  → "ccp"
+ *   Q1 = No, Q2 = Yes, Q3 = No, Q4 = No   → "modify"  (process modification required)
+ *   Any incomplete path                    → null
  */
 
 export interface DecisionTreeAnswers {
@@ -21,7 +38,7 @@ export interface DecisionTreeAnswers {
   q2: boolean | null;
   q3: boolean | null;
   q4: boolean | null;
-  result: "ccp" | "not_ccp" | null;
+  result: "ccp" | "not_ccp" | "prp" | "modify" | null;
 }
 
 /**
@@ -31,13 +48,15 @@ export interface DecisionTreeAnswers {
 export function computeResult(
   dt: Pick<DecisionTreeAnswers, "q1" | "q2" | "q3" | "q4">,
 ): DecisionTreeAnswers["result"] {
-  if (dt.q1 === false) return "not_ccp";
-  if (dt.q1 === true && dt.q2 === true) return "ccp";
-  if (dt.q1 === true && dt.q2 === false) {
-    if (dt.q3 === false) return "not_ccp";
-    if (dt.q3 === true) {
-      if (dt.q4 === true) return "not_ccp";
-      if (dt.q4 === false) return "ccp";
+  if (dt.q1 === true) return "prp";
+  if (dt.q1 === false) {
+    if (dt.q2 === false) return "not_ccp";
+    if (dt.q2 === true) {
+      if (dt.q3 === true) return "not_ccp";
+      if (dt.q3 === false) {
+        if (dt.q4 === true) return "ccp";
+        if (dt.q4 === false) return "modify";
+      }
     }
   }
   return null;

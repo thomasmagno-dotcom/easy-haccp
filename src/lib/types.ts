@@ -235,5 +235,5 @@ export interface DecisionTreeAnswers {
   q2: boolean | null; // Is step designed to eliminate/reduce?
   q3: boolean | null; // Could contamination increase?
   q4: boolean | null; // Will subsequent step control?
-  result: "ccp" | "not_ccp" | "prp" | null;
+  result: "ccp" | "not_ccp" | "prp" | "modify" | null;
 }
