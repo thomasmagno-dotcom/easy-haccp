@@ -29,7 +29,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { StepHazardAssignment, Hazard } from "@/lib/types";
+import type { StepHazardAssignment, Hazard, PrpMaster, HazardPrp } from "@/lib/types";
+import { HazardPrpPicker } from "@/components/prp-registry/HazardPrpPicker";
 import {
   SEVERITY_LEVELS,
   LIKELIHOOD_LEVELS,
@@ -204,6 +205,8 @@ interface Props {
   assignments: StepHazardAssignment[];
   availableHazards: Hazard[];
   onUpdate: (assignments: StepHazardAssignment[]) => void;
+  allPrps?: PrpMaster[];
+  prpLinksByHazard?: Record<string, HazardPrp[]>;
 }
 
 function getEffectiveSeverity(a: StepHazardAssignment): string | null {
@@ -224,6 +227,8 @@ export function HazardIdentificationSection({
   assignments,
   availableHazards,
   onUpdate,
+  allPrps = [],
+  prpLinksByHazard = {},
 }: Props) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [editingJustification, setEditingJustification] = useState<string | null>(null);
@@ -415,6 +420,7 @@ export function HazardIdentificationSection({
             <TableHead className="w-24 text-center">Risk Score</TableHead>
             <TableHead className="w-24 text-center">Significant?</TableHead>
             <TableHead>Justification</TableHead>
+            <TableHead className="w-48">Linked PRPs</TableHead>
             <TableHead className="w-12"></TableHead>
           </TableRow>
         </TableHeader>
@@ -542,6 +548,14 @@ export function HazardIdentificationSection({
                         )}
                       </button>
                     )}
+                  </TableCell>
+                  <TableCell>
+                    <HazardPrpPicker
+                      hazardId={a.hazardId}
+                      hazardName={a.hazard.name}
+                      allPrps={allPrps}
+                      initialLinks={prpLinksByHazard[a.hazardId] ?? []}
+                    />
                   </TableCell>
                   <TableCell>
                     <Button

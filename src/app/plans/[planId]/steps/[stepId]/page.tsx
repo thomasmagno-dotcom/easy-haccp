@@ -10,8 +10,10 @@ import {
   correctiveActions,
   verificationProcedures,
   stepOutputs,
+  prpMaster,
+  hazardPrp,
 } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { StepAnalysis } from "@/components/step-analysis/StepAnalysis";
 
@@ -32,61 +34,36 @@ export default async function StepAnalysisPage({
 
   if (!step) notFound();
 
-  // Get all hazards assigned to this step with their reference data
+  // Hazards assigned to this step
   const assignments = await db
-    .select({
-      stepHazard: stepHazards,
-      hazard: hazards,
-    })
+    .select({ stepHazard: stepHazards, hazard: hazards })
     .from(stepHazards)
     .innerJoin(hazards, eq(stepHazards.hazardId, hazards.id))
     .where(eq(stepHazards.stepId, stepId))
     .all();
 
-  const hazardData = await Promise.all(assignments.map(async (a) => {
-    const measures = await db
-      .select()
-      .from(controlMeasures)
-      .where(eq(controlMeasures.stepHazardId, a.stepHazard.id))
-      .all();
-    return {
-      ...a.stepHazard,
-      hazard: a.hazard,
-      controlMeasures: measures,
-    };
-  }));
+  const hazardData = await Promise.all(
+    assignments.map(async (a) => {
+      const measures = await db
+        .select()
+        .from(controlMeasures)
+        .where(eq(controlMeasures.stepHazardId, a.stepHazard.id))
+        .all();
+      return { ...a.stepHazard, hazard: a.hazard, controlMeasures: measures };
+    }),
+  );
 
-  // Get CCP data if this step is a CCP
+  // CCP data
   let ccpData = null;
   if (step.isCcp) {
-    const ccp = await db
-      .select()
-      .from(ccps)
-      .where(eq(ccps.stepId, stepId))
-      .get();
-
+    const ccp = await db.select().from(ccps).where(eq(ccps.stepId, stepId)).get();
     if (ccp) {
-      const limits = await db
-        .select()
-        .from(criticalLimits)
-        .where(eq(criticalLimits.ccpId, ccp.id))
-        .all();
-      const monitoring = await db
-        .select()
-        .from(monitoringProcedures)
-        .where(eq(monitoringProcedures.ccpId, ccp.id))
-        .all();
-      const corrective = await db
-        .select()
-        .from(correctiveActions)
-        .where(eq(correctiveActions.ccpId, ccp.id))
-        .all();
-      const verification = await db
-        .select()
-        .from(verificationProcedures)
-        .where(eq(verificationProcedures.ccpId, ccp.id))
-        .all();
-
+      const [limits, monitoring, corrective, verification] = await Promise.all([
+        db.select().from(criticalLimits).where(eq(criticalLimits.ccpId, ccp.id)).all(),
+        db.select().from(monitoringProcedures).where(eq(monitoringProcedures.ccpId, ccp.id)).all(),
+        db.select().from(correctiveActions).where(eq(correctiveActions.ccpId, ccp.id)).all(),
+        db.select().from(verificationProcedures).where(eq(verificationProcedures.ccpId, ccp.id)).all(),
+      ]);
       ccpData = {
         ...ccp,
         criticalLimits: limits,
@@ -97,14 +74,29 @@ export default async function StepAnalysisPage({
     }
   }
 
-  // Get all available hazards for the picker
-  const [allHazards, rawOutputs] = await Promise.all([
+  // All available hazards, step outputs, all PRPs, and existing hazard-PRP links
+  const assignedHazardIds = assignments.map((a) => a.hazard.id);
+
+  const [allHazards, rawOutputs, allPrps, prpLinks] = await Promise.all([
     db.select().from(hazards).all(),
     db.select().from(stepOutputs).where(eq(stepOutputs.stepId, stepId)).all(),
+    db.select().from(prpMaster).all(),
+    assignedHazardIds.length > 0
+      ? db
+          .select({ link: hazardPrp, prp: prpMaster })
+          .from(hazardPrp)
+          .innerJoin(prpMaster, eq(hazardPrp.prpMasterId, prpMaster.id))
+          .where(inArray(hazardPrp.hazardId, assignedHazardIds))
+          .all()
+      : Promise.resolve([]),
   ]);
-  // Drizzle returns outputType as string; cast to the OutputType union
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const outputs = rawOutputs as any[];
+
+  // Build map: hazardId → HazardPrp[]
+  const prpLinksByHazard: Record<string, Array<{ id: string; hazardId: string; prpMasterId: string; createdAt: string; prp: typeof allPrps[0] }>> = {};
+  for (const { link, prp } of prpLinks) {
+    if (!prpLinksByHazard[link.hazardId]) prpLinksByHazard[link.hazardId] = [];
+    prpLinksByHazard[link.hazardId].push({ ...link, prp });
+  }
 
   return (
     <StepAnalysis
@@ -113,7 +105,9 @@ export default async function StepAnalysisPage({
       hazardAssignments={hazardData}
       ccpData={ccpData}
       availableHazards={allHazards}
-      stepOutputs={outputs}
+      stepOutputs={rawOutputs as any[]}
+      allPrps={allPrps as any[]}
+      prpLinksByHazard={prpLinksByHazard as any}
     />
   );
 }

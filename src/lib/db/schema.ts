@@ -290,6 +290,43 @@ export const planVersions = sqliteTable("plan_versions", {
   changeLog: text("change_log"),
 });
 
+// ─── PRP Master Registry ─────────────────────────────────────────────────────
+
+export const prpMaster = sqliteTable("prp_master", {
+  id: text("id").primaryKey(),
+  programName: text("program_name").notNull(),
+  prpType: text("prp_type").notNull(), // SSOP | GMP | SOP | pest_control | allergen_control | environmental_monitoring | other
+  description: text("description"),
+  documentReference: text("document_reference"), // e.g. "SOP-012"
+  documentUrl: text("document_url"),             // live link to actual document
+  documentSource: text("document_source"),       // internal_upload | google_drive | sharepoint | other
+  owner: text("owner"),                          // responsible party
+  reviewFrequency: text("review_frequency"),
+  lastReviewDate: text("last_review_date"),
+  nextReviewDate: text("next_review_date"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+// ─── Hazard ↔ PRP Junction (many-to-many) ───────────────────────────────────
+
+export const hazardPrp = sqliteTable("hazard_prp", {
+  id: text("id").primaryKey(),
+  hazardId: text("hazard_id")
+    .notNull()
+    .references(() => hazards.id, { onDelete: "cascade" }),
+  prpMasterId: text("prp_master_id")
+    .notNull()
+    .references(() => prpMaster.id, { onDelete: "cascade" }),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
 // ─── Step Outputs ────────────────────────────────────────────────────────────
 
 export const stepOutputs = sqliteTable("step_outputs", {

@@ -16,6 +16,8 @@ import type {
   CcpData,
   Hazard,
   StepOutput,
+  PrpMaster,
+  HazardPrp,
 } from "@/lib/types";
 
 interface Props {
@@ -25,6 +27,8 @@ interface Props {
   ccpData: CcpData | null;
   availableHazards: Hazard[];
   stepOutputs: StepOutput[];
+  allPrps?: PrpMaster[];
+  prpLinksByHazard?: Record<string, HazardPrp[]>;
 }
 
 export function StepAnalysis({
@@ -34,6 +38,8 @@ export function StepAnalysis({
   ccpData,
   availableHazards,
   stepOutputs,
+  allPrps = [],
+  prpLinksByHazard = {},
 }: Props) {
   const [assignments, setAssignments] = useState(initialAssignments);
   const [isCcp, setIsCcp] = useState(step.isCcp ?? false);
@@ -111,6 +117,8 @@ export function StepAnalysis({
           assignments={assignments}
           availableHazards={availableHazards}
           onUpdate={(updated) => setAssignments(updated)}
+          allPrps={allPrps}
+          prpLinksByHazard={prpLinksByHazard}
         />
       </section>
 

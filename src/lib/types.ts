@@ -135,6 +135,45 @@ export interface Ingredient {
   hazards: IngredientHazardAssignment[];
 }
 
+export type PrpType =
+  | "SSOP"
+  | "GMP"
+  | "SOP"
+  | "pest_control"
+  | "allergen_control"
+  | "environmental_monitoring"
+  | "other";
+
+export type DocumentSource =
+  | "internal_upload"
+  | "google_drive"
+  | "sharepoint"
+  | "other";
+
+export interface PrpMaster {
+  id: string;
+  programName: string;
+  prpType: PrpType;
+  description: string | null;
+  documentReference: string | null;
+  documentUrl: string | null;
+  documentSource: DocumentSource | null;
+  owner: string | null;
+  reviewFrequency: string | null;
+  lastReviewDate: string | null;
+  nextReviewDate: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface HazardPrp {
+  id: string;
+  hazardId: string;
+  prpMasterId: string;
+  createdAt: string;
+  prp?: PrpMaster;
+}
+
 export type OutputType =
   | "primary_product"
   | "waste"
