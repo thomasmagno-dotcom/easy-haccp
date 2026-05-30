@@ -181,6 +181,10 @@ export function StepAnalysis({
         <ControlMeasuresSection
           planId={planId}
           assignments={assignments}
+          ccpData={ccpData}
+          ccpNumber={ccpNumber}
+          allPrps={allPrps}
+          prpLinksByHazard={prpLinksByHazard}
           onUpdate={(updated) => setAssignments(updated)}
         />
       </section>

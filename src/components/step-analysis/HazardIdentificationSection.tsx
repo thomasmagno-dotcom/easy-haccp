@@ -30,7 +30,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { StepHazardAssignment, Hazard, PrpMaster, HazardPrp } from "@/lib/types";
-import { HazardPrpPicker } from "@/components/prp-registry/HazardPrpPicker";
 import {
   SEVERITY_LEVELS,
   LIKELIHOOD_LEVELS,
@@ -420,7 +419,6 @@ export function HazardIdentificationSection({
             <TableHead className="w-24 text-center">Risk Score</TableHead>
             <TableHead className="w-24 text-center">Significant?</TableHead>
             <TableHead>Justification</TableHead>
-            <TableHead className="w-48">Linked PRPs</TableHead>
             <TableHead className="w-12"></TableHead>
           </TableRow>
         </TableHeader>
@@ -548,14 +546,6 @@ export function HazardIdentificationSection({
                         )}
                       </button>
                     )}
-                  </TableCell>
-                  <TableCell>
-                    <HazardPrpPicker
-                      hazardId={a.hazardId}
-                      hazardName={a.hazard.name}
-                      allPrps={allPrps}
-                      initialLinks={prpLinksByHazard[a.hazardId] ?? []}
-                    />
                   </TableCell>
                   <TableCell>
                     <Button
