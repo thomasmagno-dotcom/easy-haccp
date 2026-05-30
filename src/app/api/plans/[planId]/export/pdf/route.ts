@@ -17,6 +17,9 @@ import {
   ingredientHazards,
   ingredientControlMeasures,
   stepInputs,
+  stepOutputs,
+  hazardPrp,
+  prpMaster,
   planVersions,
 } from "@/lib/db/schema";
 import { eq, asc, desc, inArray } from "drizzle-orm";
@@ -45,6 +48,29 @@ export async function GET(
     .orderBy(asc(processSteps.stepNumber))
     .all();
 
+  const stepIds = steps.map((s) => s.id);
+
+  // ── Step inputs ────────────────────────────────────────────────────────────
+  const allInputRows = stepIds.length > 0
+    ? await db.select().from(stepInputs).where(inArray(stepInputs.stepId, stepIds)).all()
+    : [];
+  const inputsByStep = new Map<string, typeof allInputRows>();
+  for (const inp of allInputRows) {
+    if (!inputsByStep.has(inp.stepId)) inputsByStep.set(inp.stepId, []);
+    inputsByStep.get(inp.stepId)!.push(inp);
+  }
+
+  // ── Step outputs ───────────────────────────────────────────────────────────
+  const allOutputRows = stepIds.length > 0
+    ? await db.select().from(stepOutputs).where(inArray(stepOutputs.stepId, stepIds)).all()
+    : [];
+  const outputsByStep = new Map<string, typeof allOutputRows>();
+  for (const out of allOutputRows) {
+    if (!outputsByStep.has(out.stepId)) outputsByStep.set(out.stepId, []);
+    outputsByStep.get(out.stepId)!.push(out);
+  }
+
+  // ── Hazard data per step (with control measures + decision tree) ───────────
   const stepsWithData = await Promise.all(steps.map(async (step) => {
     const shList = await db
       .select({ stepHazard: stepHazards, hazard: hazards })
@@ -76,23 +102,47 @@ export async function GET(
       }
     }
 
-    return { ...step, hazards: hazardData, ccp: ccpData };
+    return {
+      ...step,
+      hazards: hazardData,
+      ccp: ccpData,
+      inputs: inputsByStep.get(step.id) || [],
+      outputs: outputsByStep.get(step.id) || [],
+    };
   }));
 
-  // Attach step inputs
-  const allInputRows = steps.length > 0
-    ? await db.select().from(stepInputs).where(inArray(stepInputs.stepId, steps.map((s) => s.id))).all()
+  // ── PRP links for all hazards in the plan ─────────────────────────────────
+  // Collect all distinct hazardIds referenced across all steps
+  const allHazardIds = Array.from(
+    new Set(stepsWithData.flatMap((s) => s.hazards.map((h) => h.hazardId))),
+  );
+
+  const prpLinks = allHazardIds.length > 0
+    ? await db
+        .select({ link: hazardPrp, prp: prpMaster })
+        .from(hazardPrp)
+        .innerJoin(prpMaster, eq(hazardPrp.prpMasterId, prpMaster.id))
+        .where(inArray(hazardPrp.hazardId, allHazardIds))
+        .all()
     : [];
-  const inputsByStepId = new Map<string, typeof allInputRows>();
-  for (const inp of allInputRows) {
-    if (!inputsByStepId.has(inp.stepId)) inputsByStepId.set(inp.stepId, []);
-    inputsByStepId.get(inp.stepId)!.push(inp);
+
+  // Build map: hazardId → PrpMaster[]
+  const prpsByHazardId = new Map<string, Array<typeof prpLinks[0]["prp"]>>();
+  for (const { link, prp } of prpLinks) {
+    if (!prpsByHazardId.has(link.hazardId)) prpsByHazardId.set(link.hazardId, []);
+    prpsByHazardId.get(link.hazardId)!.push(prp);
   }
-  const stepsWithInputs = stepsWithData.map((step) => ({
+
+  // Attach PRPs to each step's hazard data
+  const stepsWithPrps = stepsWithData.map((step) => ({
     ...step,
-    inputs: inputsByStepId.get(step.id) || [],
+    hazards: step.hazards.map((sh) => ({
+      ...sh,
+      linkedPrps: prpsByHazardId.get(sh.hazardId) || [],
+    })),
   }));
 
+  // ── Ingredients ────────────────────────────────────────────────────────────
   const ingredientRows = await db
     .select()
     .from(ingredients)
@@ -120,7 +170,7 @@ export async function GET(
     };
   }));
 
-  // Pull all published versions for the full amendment logbook
+  // ── Version history ────────────────────────────────────────────────────────
   const allVersions = await db
     .select()
     .from(planVersions)
@@ -133,12 +183,11 @@ export async function GET(
 
   const snapshot = {
     plan,
-    processSteps: stepsWithInputs,
+    processSteps: stepsWithPrps,
     ingredients: ingredientsWithHazards,
     snapshotAt,
     publishedBy: latestVersion?.publishedBy ?? null,
     changeDescription: latestVersion?.changeDescription ?? null,
-    // Full version history for Document Control page
     allVersions: allVersions.map((v) => ({
       versionNumber: v.versionNumber,
       publishedAt: v.publishedAt,
