@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { PRP_TYPE_LABELS, PRP_TYPE_COLORS } from "./PrpRegistryClient";
+import { PRP_TYPE_COLORS } from "./PrpRegistryClient";
 import type { PrpMaster, HazardPrp } from "@/lib/types";
 
 interface Props {
@@ -71,7 +71,11 @@ export function HazardPrpPicker({ hazardId, hazardName, allPrps, initialLinks }:
               key={link.id}
               className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border bg-white"
             >
-              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${PRP_TYPE_COLORS[prp.prpType]?.split(" ")[0]}`} />
+              {prp.fsepCode && (
+                <span className={`text-[9px] font-bold font-mono px-1 rounded shrink-0 ${PRP_TYPE_COLORS[prp.prpType]}`}>
+                  {prp.fsepCode}
+                </span>
+              )}
               <span className="truncate max-w-[140px]" title={prp.programName}>
                 {prp.documentReference ? `${prp.documentReference} — ` : ""}{prp.programName}
               </span>
@@ -127,8 +131,8 @@ export function HazardPrpPicker({ hazardId, hazardName, allPrps, initialLinks }:
                       disabled={adding === prp.id}
                       className="w-full text-left px-3 py-2 hover:bg-neutral-50 disabled:opacity-50 flex items-start gap-2 border-b border-neutral-50 last:border-0"
                     >
-                      <span className={`mt-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${PRP_TYPE_COLORS[prp.prpType]}`}>
-                        {PRP_TYPE_LABELS[prp.prpType] ?? prp.prpType}
+                      <span className={`mt-0.5 text-[10px] font-bold font-mono px-1.5 py-0.5 rounded shrink-0 ${PRP_TYPE_COLORS[prp.prpType]}`}>
+                        {prp.fsepCode ?? prp.prpType}
                       </span>
                       <div className="min-w-0">
                         <p className="text-xs font-medium truncate">{prp.programName}</p>

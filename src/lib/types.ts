@@ -135,14 +135,18 @@ export interface Ingredient {
   hazards: IngredientHazardAssignment[];
 }
 
+/**
+ * FSEP main category letters (A–G).
+ * Based on CFIA Food Safety Enhancement Program (FSEP) prerequisite program structure.
+ */
 export type PrpType =
-  | "SSOP"
-  | "GMP"
-  | "SOP"
-  | "pest_control"
-  | "allergen_control"
-  | "environmental_monitoring"
-  | "other";
+  | "A"   // Premises
+  | "B"   // Food Conveyances, Purchasing, Receiving and Storage
+  | "C"   // Conveyances and Equipment in the Establishment
+  | "D"   // Personnel
+  | "E"   // Sanitation and Pest Control
+  | "F"   // Recall System
+  | "G";  // Operational Prerequisite Programs
 
 export type DocumentSource =
   | "internal_upload"
@@ -153,7 +157,8 @@ export type DocumentSource =
 export interface PrpMaster {
   id: string;
   programName: string;
-  prpType: PrpType;
+  prpType: PrpType;              // FSEP main category (A–G)
+  fsepCode: string | null;       // FSEP element code, e.g. "A.1", "E.2.1"
   description: string | null;
   documentReference: string | null;
   documentUrl: string | null;

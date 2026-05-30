@@ -295,7 +295,8 @@ export const planVersions = sqliteTable("plan_versions", {
 export const prpMaster = sqliteTable("prp_master", {
   id: text("id").primaryKey(),
   programName: text("program_name").notNull(),
-  prpType: text("prp_type").notNull(), // SSOP | GMP | SOP | pest_control | allergen_control | environmental_monitoring | other
+  prpType: text("prp_type").notNull(), // A | B | C | D | E | F | G  (FSEP main category)
+  fsepCode: text("fsep_code"),         // e.g. "A.1", "E.2", "G.1"  (FSEP element code)
   description: text("description"),
   documentReference: text("document_reference"), // e.g. "SOP-012"
   documentUrl: text("document_url"),             // live link to actual document

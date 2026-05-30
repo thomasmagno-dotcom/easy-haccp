@@ -18,17 +18,53 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { PrpMaster, PrpType, DocumentSource } from "@/lib/types";
+import { FSEP_CATEGORIES } from "./PrpRegistryClient";
+import type { PrpMaster, DocumentSource } from "@/lib/types";
 
-const PRP_TYPE_OPTIONS: { value: PrpType; label: string }[] = [
-  { value: "SSOP",                     label: "SSOP — Sanitation Standard Operating Procedure" },
-  { value: "GMP",                      label: "GMP — Good Manufacturing Practice" },
-  { value: "SOP",                      label: "SOP — Standard Operating Procedure" },
-  { value: "pest_control",             label: "Pest Control" },
-  { value: "allergen_control",         label: "Allergen Control" },
-  { value: "environmental_monitoring", label: "Environmental Monitoring" },
-  { value: "other",                    label: "Other" },
-];
+// ── FSEP element options per category ────────────────────────────────────────
+// Used to populate the element code dropdown based on selected category
+
+const FSEP_ELEMENTS: Record<string, { code: string; name: string }[]> = {
+  A: [
+    { code: "A.1",   name: "A.1 — Outside Property" },
+    { code: "A.2",   name: "A.2 — Establishment (Design, Construction and Maintenance)" },
+    { code: "A.2.2", name: "A.2.2 — Movement of Persons and Things" },
+    { code: "A.2.3", name: "A.2.3 — Lighting" },
+    { code: "A.2.4", name: "A.2.4 — Ventilation" },
+    { code: "A.2.5", name: "A.2.5 — Waste and Inedible / Food Disposal" },
+    { code: "A.3.1", name: "A.3.1 — Employee Facilities" },
+    { code: "A.3.2", name: "A.3.2 — Hand-Washing Stations and Sanitizing Installations" },
+    { code: "A.4",   name: "A.4 — Water, Ice and Steam Supply" },
+  ],
+  B: [
+    { code: "B.1",   name: "B.1 — Food Conveyances" },
+    { code: "B.2.1", name: "B.2.1 — Purchasing and Receiving" },
+    { code: "B.2.2", name: "B.2.2 — Storage" },
+  ],
+  C: [
+    { code: "C.1.1", name: "C.1.1 — Equipment Design and Installation" },
+    { code: "C.1.2", name: "C.1.2 — Equipment Maintenance and Calibration" },
+  ],
+  D: [
+    { code: "D.1.1", name: "D.1.1 — General Food Hygiene Training" },
+    { code: "D.1.2", name: "D.1.2 — Technical Training" },
+    { code: "D.2",   name: "D.2 — General Food Hygiene Program" },
+  ],
+  E: [
+    { code: "E.1", name: "E.1 — Sanitation Program" },
+    { code: "E.2", name: "E.2 — Pest Control Program" },
+  ],
+  F: [
+    { code: "F.1",   name: "F.1 — Recall Plan" },
+    { code: "F.2.1", name: "F.2.1 — Traceability System (Documents)" },
+    { code: "F.2.2", name: "F.2.2 — Labelling for Traceability" },
+  ],
+  G: [
+    { code: "G.1", name: "G.1 — Allergen, Gluten and Added Sulphites Control" },
+    { code: "G.2", name: "G.2 — Food Additives, Processing Aids and Added Nutrients" },
+    { code: "G.3", name: "G.3 — Foreign Material Control Program" },
+  ],
+};
 
 const DOCUMENT_SOURCE_OPTIONS: { value: DocumentSource; label: string }[] = [
   { value: "internal_upload", label: "Internal Upload" },
@@ -39,7 +75,8 @@ const DOCUMENT_SOURCE_OPTIONS: { value: DocumentSource; label: string }[] = [
 
 interface FormState {
   programName: string;
-  prpType: string;
+  prpType: string;      // FSEP category letter A–G
+  fsepCode: string;     // FSEP element code e.g. "A.1"
   description: string;
   documentReference: string;
   documentUrl: string;
@@ -53,7 +90,8 @@ interface FormState {
 function initForm(prp?: PrpMaster): FormState {
   return {
     programName:       prp?.programName       ?? "",
-    prpType:           prp?.prpType           ?? "SSOP",
+    prpType:           prp?.prpType           ?? "A",
+    fsepCode:          prp?.fsepCode          ?? "",
     description:       prp?.description       ?? "",
     documentReference: prp?.documentReference ?? "",
     documentUrl:       prp?.documentUrl       ?? "",
@@ -78,7 +116,29 @@ export function PrpFormDialog({ open, prp, onClose, onSaved }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   function set(field: keyof FormState, value: string) {
-    setForm((prev) => ({ ...prev, [field]: value }));
+    setForm((prev) => {
+      const next = { ...prev, [field]: value };
+      // When category changes, reset fsepCode unless the existing code matches
+      if (field === "prpType" && value !== prev.prpType) {
+        next.fsepCode = "";
+      }
+      return next;
+    });
+    setError(null);
+  }
+
+  // When user picks an element, also auto-fill the program name if blank
+  function setElement(code: string) {
+    const elements = FSEP_ELEMENTS[form.prpType] ?? [];
+    const el = elements.find((e) => e.code === code);
+    setForm((prev) => ({
+      ...prev,
+      fsepCode: code,
+      // Auto-fill name from FSEP element if name is still blank
+      programName: prev.programName.trim() === "" && el
+        ? el.name.replace(/^[A-Z]\.\d[\d.]*\s*—\s*/, "") // strip "A.1 — " prefix
+        : prev.programName,
+    }));
     setError(null);
   }
 
@@ -90,16 +150,17 @@ export function PrpFormDialog({ open, prp, onClose, onSaved }: Props) {
     setSaving(true);
 
     const payload = {
-      ...form,
       programName:       form.programName.trim(),
-      description:       form.description.trim()       || null,
+      prpType:           form.prpType,
+      fsepCode:          form.fsepCode.trim()       || null,
+      description:       form.description.trim()    || null,
       documentReference: form.documentReference.trim() || null,
-      documentUrl:       form.documentUrl.trim()       || null,
-      documentSource:    form.documentSource            || null,
-      owner:             form.owner.trim()              || null,
-      reviewFrequency:   form.reviewFrequency.trim()   || null,
-      lastReviewDate:    form.lastReviewDate            || null,
-      nextReviewDate:    form.nextReviewDate            || null,
+      documentUrl:       form.documentUrl.trim()    || null,
+      documentSource:    form.documentSource        || null,
+      owner:             form.owner.trim()          || null,
+      reviewFrequency:   form.reviewFrequency.trim() || null,
+      lastReviewDate:    form.lastReviewDate        || null,
+      nextReviewDate:    form.nextReviewDate        || null,
     };
 
     const res = await fetch("/api/prp-registry", {
@@ -111,78 +172,113 @@ export function PrpFormDialog({ open, prp, onClose, onSaved }: Props) {
     setSaving(false);
 
     if (res.ok) {
-      const saved: PrpMaster = await res.json();
-      onSaved(saved);
+      onSaved(await res.json() as PrpMaster);
     } else {
       const err = await res.json().catch(() => ({}));
-      setError(err.error ?? "Failed to save. Please try again.");
+      setError((err as { error?: string }).error ?? "Failed to save. Please try again.");
     }
   }
+
+  const elementOptions = FSEP_ELEMENTS[form.prpType] ?? [];
+  const selectedCategory = FSEP_CATEGORIES.find((c) => c.type === form.prpType);
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{prp ? "Edit PRP" : "Add Prerequisite Program"}</DialogTitle>
+          <p className="text-xs text-neutral-500 mt-1">
+            Follows the CFIA FSEP prerequisite program structure (categories A–G).
+          </p>
         </DialogHeader>
 
         <div className="space-y-5 pt-2">
+          {/* FSEP Category + Element */}
+          <div className="rounded-lg border border-neutral-200 p-4 space-y-4 bg-neutral-50">
+            <p className="text-xs font-semibold text-neutral-700">FSEP Classification</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs">FSEP Category *</Label>
+                <Select value={form.prpType} onValueChange={(v) => v && set("prpType", v)}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FSEP_CATEGORIES.map((cat) => (
+                      <SelectItem key={cat.type} value={cat.type}>
+                        <span className="font-bold">{cat.code}</span>
+                        <span className="text-neutral-500 ml-1">— {cat.label}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedCategory && (
+                  <p className="text-[11px] text-neutral-500 mt-1">{selectedCategory.label}</p>
+                )}
+              </div>
+              <div>
+                <Label className="text-xs">FSEP Element</Label>
+                <Select value={form.fsepCode || ""} onValueChange={(v) => v && setElement(v)}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Select element…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {elementOptions.map((el) => (
+                      <SelectItem key={el.code} value={el.code}>
+                        <span className="font-mono font-bold text-xs">{el.code}</span>
+                        <span className="text-neutral-500 ml-1 text-xs">
+                          — {el.name.replace(/^[A-Z]\.\d[\d.]*\s*—\s*/, "")}
+                        </span>
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="custom">Custom / Other</SelectItem>
+                  </SelectContent>
+                </Select>
+                {form.fsepCode === "custom" && (
+                  <Input
+                    className="mt-2 text-xs"
+                    placeholder="Enter custom code, e.g. A.2.1"
+                    onChange={(e) => set("fsepCode", e.target.value)}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Core info */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
+          <div className="space-y-4">
+            <div>
               <Label className="text-xs">Program Name *</Label>
               <Input
                 value={form.programName}
                 onChange={(e) => set("programName", e.target.value)}
-                placeholder="e.g. Sanitation SOP-012"
+                placeholder="e.g. Sanitation SOP — Equipment Cleaning"
                 className="mt-1"
                 autoFocus
               />
             </div>
             <div>
-              <Label className="text-xs">PRP Type *</Label>
-              <Select value={form.prpType} onValueChange={(v) => v && set("prpType", v)}>
-                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {PRP_TYPE_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs">Document Reference</Label>
-              <Input
-                value={form.documentReference}
-                onChange={(e) => set("documentReference", e.target.value)}
-                placeholder="e.g. SOP-012"
+              <Label className="text-xs">Description</Label>
+              <Textarea
+                value={form.description}
+                onChange={(e) => set("description", e.target.value)}
+                placeholder="What does this program control and how?"
+                rows={3}
                 className="mt-1"
               />
             </div>
           </div>
 
-          <div>
-            <Label className="text-xs">Description</Label>
-            <Textarea
-              value={form.description}
-              onChange={(e) => set("description", e.target.value)}
-              placeholder="What does this program control and how?"
-              rows={3}
-              className="mt-1"
-            />
-          </div>
-
           {/* Document info */}
           <div className="rounded-lg border border-neutral-200 p-4 space-y-4">
-            <p className="text-xs font-semibold text-neutral-700">Document Link</p>
+            <p className="text-xs font-semibold text-neutral-700">Document Reference</p>
             <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <Label className="text-xs">Document URL</Label>
+              <div>
+                <Label className="text-xs">Document Reference Number</Label>
                 <Input
-                  type="url"
-                  value={form.documentUrl}
-                  onChange={(e) => set("documentUrl", e.target.value)}
-                  placeholder="https://drive.google.com/… or SharePoint link"
+                  value={form.documentReference}
+                  onChange={(e) => set("documentReference", e.target.value)}
+                  placeholder="e.g. SOP-012, SSOP-E1-001"
                   className="mt-1"
                 />
               </div>
@@ -202,19 +298,29 @@ export function PrpFormDialog({ open, prp, onClose, onSaved }: Props) {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="col-span-2">
+                <Label className="text-xs">Document URL</Label>
+                <Input
+                  type="url"
+                  value={form.documentUrl}
+                  onChange={(e) => set("documentUrl", e.target.value)}
+                  placeholder="https://drive.google.com/… or SharePoint link"
+                  className="mt-1"
+                />
+              </div>
             </div>
           </div>
 
           {/* Ownership & review */}
           <div className="rounded-lg border border-neutral-200 p-4 space-y-4">
-            <p className="text-xs font-semibold text-neutral-700">Ownership & Review</p>
+            <p className="text-xs font-semibold text-neutral-700">Ownership & Review Schedule</p>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label className="text-xs">Responsible Owner</Label>
                 <Input
                   value={form.owner}
                   onChange={(e) => set("owner", e.target.value)}
-                  placeholder="e.g. QA Manager"
+                  placeholder="e.g. QA Manager, Sanitation Supervisor"
                   className="mt-1"
                 />
               </div>
@@ -223,7 +329,7 @@ export function PrpFormDialog({ open, prp, onClose, onSaved }: Props) {
                 <Input
                   value={form.reviewFrequency}
                   onChange={(e) => set("reviewFrequency", e.target.value)}
-                  placeholder="e.g. Annually, Quarterly"
+                  placeholder="e.g. Annually, Semi-annually"
                   className="mt-1"
                 />
               </div>
