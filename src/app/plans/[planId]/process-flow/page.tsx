@@ -1,5 +1,13 @@
 import { db } from "@/lib/db";
-import { processSteps, stepHazards, stepInputs, inputSubgraphSteps, stepOutputs } from "@/lib/db/schema";
+import {
+  processSteps,
+  stepHazards,
+  hazards,
+  outputHazards,
+  stepInputs,
+  inputSubgraphSteps,
+  stepOutputs,
+} from "@/lib/db/schema";
 import { eq, asc, sql, inArray } from "drizzle-orm";
 import { ProcessFlowEditor } from "@/components/process-flow/ProcessFlowEditor";
 
@@ -19,7 +27,9 @@ export default async function ProcessFlowPage({
     .orderBy(asc(processSteps.stepNumber))
     .all();
 
-  // Hazard counts per step
+  const stepIds = steps.map((s) => s.id);
+
+  // ── Hazard counts per step ────────────────────────────────────────────────
   const hazardCounts = await db
     .select({ stepId: stepHazards.stepId, count: sql<number>`count(*)` })
     .from(stepHazards)
@@ -29,9 +39,28 @@ export default async function ProcessFlowPage({
   const hazardCountMap: Record<string, number> = {};
   for (const hc of hazardCounts) hazardCountMap[hc.stepId] = hc.count;
 
-  // Step inputs
-  const inputRows = steps.length > 0
-    ? await db.select().from(stepInputs).where(inArray(stepInputs.stepId, steps.map((s) => s.id))).all()
+  // ── Distinct hazard types per step ───────────────────────────────────────
+  // e.g. { "stepId123": ["biological", "chemical"] }
+  const stepHazardTypeRows = stepIds.length > 0
+    ? await db
+        .select({ stepId: stepHazards.stepId, type: hazards.type })
+        .from(stepHazards)
+        .innerJoin(hazards, eq(stepHazards.hazardId, hazards.id))
+        .where(inArray(stepHazards.stepId, stepIds))
+        .all()
+    : [];
+
+  const hazardTypesByStep: Record<string, string[]> = {};
+  for (const row of stepHazardTypeRows) {
+    if (!hazardTypesByStep[row.stepId]) hazardTypesByStep[row.stepId] = [];
+    if (!hazardTypesByStep[row.stepId].includes(row.type)) {
+      hazardTypesByStep[row.stepId].push(row.type);
+    }
+  }
+
+  // ── Step inputs ───────────────────────────────────────────────────────────
+  const inputRows = stepIds.length > 0
+    ? await db.select().from(stepInputs).where(inArray(stepInputs.stepId, stepIds)).all()
     : [];
 
   const inputsByStep: Record<string, typeof inputRows> = {};
@@ -40,7 +69,7 @@ export default async function ProcessFlowPage({
     inputsByStep[inp.stepId].push(inp);
   }
 
-  // Input subgraph steps
+  // ── Input subgraph steps ──────────────────────────────────────────────────
   const subgraphRows = inputRows.length > 0
     ? await db
         .select()
@@ -56,9 +85,9 @@ export default async function ProcessFlowPage({
     subgraphStepsByInput[ss.inputId].push(ss);
   }
 
-  // Step outputs
-  const outputRows = steps.length > 0
-    ? await db.select().from(stepOutputs).where(inArray(stepOutputs.stepId, steps.map((s) => s.id))).all()
+  // ── Step outputs ──────────────────────────────────────────────────────────
+  const outputRows = stepIds.length > 0
+    ? await db.select().from(stepOutputs).where(inArray(stepOutputs.stepId, stepIds)).all()
     : [];
 
   const outputsByStep: Record<string, typeof outputRows> = {};
@@ -67,14 +96,35 @@ export default async function ProcessFlowPage({
     outputsByStep[out.stepId].push(out);
   }
 
+  // ── Distinct hazard types per output ─────────────────────────────────────
+  const outputIds = outputRows.map((o) => o.id);
+  const outputHazardTypeRows = outputIds.length > 0
+    ? await db
+        .select({ outputId: outputHazards.outputId, type: hazards.type })
+        .from(outputHazards)
+        .innerJoin(hazards, eq(outputHazards.hazardId, hazards.id))
+        .where(inArray(outputHazards.outputId, outputIds))
+        .all()
+    : [];
+
+  const hazardTypesByOutput: Record<string, string[]> = {};
+  for (const row of outputHazardTypeRows) {
+    if (!hazardTypesByOutput[row.outputId]) hazardTypesByOutput[row.outputId] = [];
+    if (!hazardTypesByOutput[row.outputId].includes(row.type)) {
+      hazardTypesByOutput[row.outputId].push(row.type);
+    }
+  }
+
   return (
     <ProcessFlowEditor
       planId={planId}
       initialSteps={steps}
       hazardCounts={hazardCountMap}
+      hazardTypesByStep={hazardTypesByStep}
       initialInputs={inputsByStep}
       initialSubgraphSteps={subgraphStepsByInput}
       initialOutputsByStep={outputsByStep}
+      hazardTypesByOutput={hazardTypesByOutput}
     />
   );
 }

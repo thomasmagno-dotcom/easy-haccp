@@ -18,6 +18,7 @@ import {
   ingredientControlMeasures,
   stepInputs,
   stepOutputs,
+  outputHazards,
   hazardPrp,
   prpMaster,
   planVersions,
@@ -64,10 +65,32 @@ export async function GET(
   const allOutputRows = stepIds.length > 0
     ? await db.select().from(stepOutputs).where(inArray(stepOutputs.stepId, stepIds)).all()
     : [];
-  const outputsByStep = new Map<string, typeof allOutputRows>();
+
+  // Distinct hazard types per output (for flow diagram badges)
+  const allOutputIds = allOutputRows.map((o) => o.id);
+  const outputHazardTypeRows = allOutputIds.length > 0
+    ? await db
+        .select({ outputId: outputHazards.outputId, type: hazards.type })
+        .from(outputHazards)
+        .innerJoin(hazards, eq(outputHazards.hazardId, hazards.id))
+        .where(inArray(outputHazards.outputId, allOutputIds))
+        .all()
+    : [];
+
+  const hazardTypesByOutputId = new Map<string, string[]>();
+  for (const row of outputHazardTypeRows) {
+    if (!hazardTypesByOutputId.has(row.outputId)) hazardTypesByOutputId.set(row.outputId, []);
+    const arr = hazardTypesByOutputId.get(row.outputId)!;
+    if (!arr.includes(row.type)) arr.push(row.type);
+  }
+
+  const outputsByStep = new Map<string, Array<typeof allOutputRows[0] & { hazardTypes: string[] }>>();
   for (const out of allOutputRows) {
     if (!outputsByStep.has(out.stepId)) outputsByStep.set(out.stepId, []);
-    outputsByStep.get(out.stepId)!.push(out);
+    outputsByStep.get(out.stepId)!.push({
+      ...out,
+      hazardTypes: hazardTypesByOutputId.get(out.id) || [],
+    });
   }
 
   // ── Hazard data per step (with control measures + decision tree) ───────────

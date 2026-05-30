@@ -166,6 +166,37 @@ const OUTPUT_COLORS: Record<string, { bg: string; text: string; border: string }
   other:            { bg: "#f5f3ff", text: "#7c3aed", border: "#c4b5fd" },
 };
 
+// ── Hazard type badge config (PDF) ────────────────────────────────────────────
+
+const HAZARD_TYPE_PDF: Record<string, { letter: string; bg: string; text: string }> = {
+  biological:   { letter: "B", bg: "#fee2e2", text: "#b91c1c" },
+  chemical:     { letter: "C", bg: "#ffedd5", text: "#c2410c" },
+  physical:     { letter: "P", bg: "#dbeafe", text: "#1d4ed8" },
+  allergen:     { letter: "A", bg: "#f5f3ff", text: "#7c3aed" },
+  radiological: { letter: "R", bg: "#fef9c3", text: "#a16207" },
+  fraud:        { letter: "F", bg: "#f3f4f6", text: "#374151" },
+};
+
+const HAZARD_TYPE_PDF_ORDER = ["biological", "chemical", "physical", "allergen", "radiological", "fraud"];
+
+function PdfHazardTypeBadges({ types }: { types: string[] }) {
+  const ordered = HAZARD_TYPE_PDF_ORDER.filter((t) => types.includes(t));
+  if (ordered.length === 0) return null;
+  return (
+    <View style={{ flexDirection: "row", gap: 2, flexWrap: "wrap" }}>
+      {ordered.map((type) => {
+        const cfg = HAZARD_TYPE_PDF[type];
+        if (!cfg) return null;
+        return (
+          <View key={type} style={{ backgroundColor: cfg.bg, borderRadius: 2, width: 14, height: 14, justifyContent: "center", alignItems: "center" }}>
+            <Text style={{ fontSize: 7, fontFamily: "Helvetica-Bold", color: cfg.text }}>{cfg.letter}</Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
   const plan = snapshot.plan;
@@ -379,7 +410,9 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
         {steps.map((step: Record<string, any>, i: number) => {
           const isCcp = !!step.isCcp;
           const stepType = (step.category as string) || "";
-          const hazardCount = ((step.hazards as any[]) || []).length;
+          const stepHazardList = (step.hazards as any[]) || [];
+          const hazardCount = stepHazardList.length;
+          const stepHazardTypes = Array.from(new Set(stepHazardList.map((sh: any) => (sh.hazard as any)?.type as string).filter(Boolean)));
           const stepInputsList = (step.inputs as any[]) || [];
           const stepOutputsList = (step.outputs as any[]) || [];
 
@@ -447,13 +480,19 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
                           const outType = (out.outputType as string) || "other";
                           const col = OUTPUT_COLORS[outType] || OUTPUT_COLORS.other;
                           const label = OUTPUT_TYPE_LABELS[outType] || outType;
+                          const outHazardTypes: string[] = (out.hazardTypes as string[]) || [];
                           return (
-                            <View key={k} style={{ backgroundColor: col.bg, borderWidth: 1, borderColor: col.border, borderRadius: 3, paddingHorizontal: 4, paddingVertical: 1, marginRight: 3, marginBottom: 2 }}>
+                            <View key={k} style={{ backgroundColor: col.bg, borderWidth: 1, borderColor: col.border, borderRadius: 3, paddingHorizontal: 4, paddingVertical: 2, marginRight: 3, marginBottom: 2 }}>
                               <Text style={{ fontSize: 7, color: col.text, fontFamily: "Helvetica-Bold" }}>
                                 {out.name as string}
                                 <Text style={{ fontFamily: "Helvetica", color: col.text }}> ({label})</Text>
                                 {out.isCcp ? " ⚠ CCP" : ""}
                               </Text>
+                              {outHazardTypes.length > 0 && (
+                                <View style={{ marginTop: 2 }}>
+                                  <PdfHazardTypeBadges types={outHazardTypes} />
+                                </View>
+                              )}
                             </View>
                           );
                         })}
@@ -462,8 +501,11 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
                   </View>
 
                   {hazardCount > 0 && (
-                    <View style={{ backgroundColor: "#f3f4f6", borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 6, flexShrink: 0 }}>
-                      <Text style={{ fontSize: 7, color: "#374151" }}>{hazardCount} hazard{hazardCount > 1 ? "s" : ""}</Text>
+                    <View style={{ marginLeft: 6, flexShrink: 0, alignItems: "flex-end", gap: 3 }}>
+                      <View style={{ backgroundColor: "#f3f4f6", borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 }}>
+                        <Text style={{ fontSize: 7, color: "#374151" }}>{hazardCount} hazard{hazardCount > 1 ? "s" : ""}</Text>
+                      </View>
+                      <PdfHazardTypeBadges types={stepHazardTypes} />
                     </View>
                   )}
                 </View>

@@ -50,6 +50,7 @@ interface StepOutput {
 interface Props {
   step: ProcessStep;
   hazardCount: number;
+  hazardTypes: string[];           // distinct hazard types on this step
   planId: string;
   onDelete: () => void;
   inputs: StepInput[];
@@ -60,6 +61,7 @@ interface Props {
   onDeleteSubgraphStep: (inputId: string, subgraphStepId: string) => void;
   onMoveSubgraphStep: (inputId: string, subgraphStepId: string, direction: "up" | "down") => void;
   outputs: StepOutput[];
+  hazardTypesByOutput: Record<string, string[]>;  // outputId → hazard types
 }
 
 // ── Style config ──────────────────────────────────────────────────────────────
@@ -96,6 +98,44 @@ const SUBSTEP_CATEGORY_CONFIG: Record<string, { icon: string; label: string; bg:
 };
 
 const INPUT_TYPE_ORDER = ["water", "chemical", "material", "energy", "other"];
+
+// ── Hazard type badge config ───────────────────────────────────────────────────
+const HAZARD_TYPE_CONFIG: Record<string, { letter: string; classes: string }> = {
+  biological:   { letter: "B", classes: "bg-red-100 text-red-700 border-red-200"       },
+  chemical:     { letter: "C", classes: "bg-orange-100 text-orange-700 border-orange-200" },
+  physical:     { letter: "P", classes: "bg-blue-100 text-blue-700 border-blue-200"    },
+  allergen:     { letter: "A", classes: "bg-purple-100 text-purple-700 border-purple-200" },
+  radiological: { letter: "R", classes: "bg-yellow-100 text-yellow-700 border-yellow-200" },
+  fraud:        { letter: "F", classes: "bg-neutral-100 text-neutral-600 border-neutral-200" },
+};
+
+const HAZARD_TYPE_ORDER = ["biological", "chemical", "physical", "allergen", "radiological", "fraud"];
+
+function HazardTypeBadges({ types, size = "sm" }: { types: string[]; size?: "sm" | "xs" }) {
+  const ordered = HAZARD_TYPE_ORDER.filter((t) => types.includes(t));
+  if (ordered.length === 0) return null;
+  return (
+    <div className={`flex gap-0.5 flex-wrap ${size === "xs" ? "mt-0.5" : "mt-1"}`}>
+      {ordered.map((type) => {
+        const cfg = HAZARD_TYPE_CONFIG[type];
+        if (!cfg) return null;
+        return (
+          <span
+            key={type}
+            title={type.charAt(0).toUpperCase() + type.slice(1)}
+            className={`inline-flex items-center justify-center font-bold border rounded ${cfg.classes} ${
+              size === "xs"
+                ? "text-[9px] w-3.5 h-3.5"
+                : "text-[10px] w-4 h-4"
+            }`}
+          >
+            {cfg.letter}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
 
 const OUTPUT_TYPE_CONFIG: Record<string, { border: string; header: string; icon: string; label: string }> = {
   primary_product:  { border: "border-teal-200",    header: "bg-teal-100 text-teal-700",     icon: "✅", label: "Primary Product"   },
@@ -287,11 +327,11 @@ function InputSubgraphBox({
 // ── FlowNode ──────────────────────────────────────────────────────────────────
 
 export function FlowNode({
-  step, hazardCount, planId, onDelete,
+  step, hazardCount, hazardTypes, planId, onDelete,
   inputs, subgraphStepsByInput,
   onAddInput, onDeleteInput,
   onAddSubgraphStep, onDeleteSubgraphStep, onMoveSubgraphStep,
-  outputs,
+  outputs, hazardTypesByOutput,
 }: Props) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: step.id });
   const [showInputForm, setShowInputForm] = useState(false);
@@ -456,6 +496,7 @@ export function FlowNode({
                 {hazardCount} hazard{hazardCount !== 1 ? "s" : ""}
               </span>
             )}
+            <HazardTypeBadges types={hazardTypes} size="sm" />
             {step.isCcp && <span className="text-[10px] text-red-600 font-medium">Critical Control Point</span>}
           </div>
         </Link>
@@ -502,12 +543,13 @@ export function FlowNode({
                   </span>
                 )}
               </div>
-              {/* Output name */}
+              {/* Output name + hazard type badges */}
               <div className="bg-white px-2 py-1.5">
                 <p className="text-xs font-semibold text-neutral-700 truncate leading-tight">{out.name}</p>
                 {out.description && (
                   <p className="text-[10px] text-neutral-400 truncate mt-0.5">{out.description}</p>
                 )}
+                <HazardTypeBadges types={hazardTypesByOutput[out.id] || []} size="xs" />
               </div>
             </Link>
           );

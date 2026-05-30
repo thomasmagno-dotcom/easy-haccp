@@ -71,18 +71,22 @@ interface Props {
   planId: string;
   initialSteps: ProcessStep[];
   hazardCounts: Record<string, number>;
+  hazardTypesByStep?: Record<string, string[]>;
   initialInputs: Record<string, StepInput[]>;
   initialSubgraphSteps: Record<string, SubgraphStep[]>;
   initialOutputsByStep?: Record<string, StepOutput[]>;
+  hazardTypesByOutput?: Record<string, string[]>;
 }
 
 export function ProcessFlowEditor({
   planId,
   initialSteps,
   hazardCounts,
+  hazardTypesByStep = {},
   initialInputs,
   initialSubgraphSteps,
   initialOutputsByStep,
+  hazardTypesByOutput = {},
 }: Props) {
   const [steps, setSteps] = useState(initialSteps);
   const [inputsByStep, setInputsByStep] = useState<Record<string, StepInput[]>>(initialInputs);
@@ -274,6 +278,7 @@ export function ProcessFlowEditor({
                 <FlowNode
                   step={step}
                   hazardCount={hazardCounts[step.id] || 0}
+                  hazardTypes={hazardTypesByStep[step.id] || []}
                   planId={planId}
                   onDelete={() => deleteStep(step.id)}
                   inputs={inputsByStep[step.id] || []}
@@ -284,6 +289,7 @@ export function ProcessFlowEditor({
                   onDeleteSubgraphStep={(inputId, ssId) => deleteSubgraphStep(inputId, ssId)}
                   onMoveSubgraphStep={(inputId, ssId, dir) => moveSubgraphStep(inputId, ssId, dir)}
                   outputs={(outputsByStep ?? {})[step.id] ?? []}
+                  hazardTypesByOutput={hazardTypesByOutput}
                 />
                 {/* Arrow connector — centered under the step box */}
                 {index < steps.length - 1 && (
