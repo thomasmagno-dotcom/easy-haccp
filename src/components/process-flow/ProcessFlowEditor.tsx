@@ -37,6 +37,14 @@ interface ProcessStep {
   category: string | null;
   isCcp: boolean;
   ccpNumber: string | null;
+  isSharedMaster?: boolean;
+  // Junction fields (present after junction migration)
+  junctionId?: string;
+  sequence?: number;
+  isShared?: boolean;
+  localOverrides?: { name?: string; description?: string } | null;
+  masterName?: string;
+  masterDescription?: string;
 }
 
 interface StepInput {
@@ -96,6 +104,16 @@ export function ProcessFlowEditor({
   const [newStepCategory, setNewStepCategory] = useState("processing");
   const [adding, setAdding] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
+  // Shared Steps — link existing step dialog
+  const [showLinkDialog, setShowLinkDialog] = useState(false);
+  const [linkSearch, setLinkSearch] = useState("");
+  const [linkResults, setLinkResults] = useState<(ProcessStep & { homePlanName: string; homePlanId: string })[]>([]);
+  const [linking, setLinking] = useState(false);
+  // Local overrides editor
+  const [overrideTarget, setOverrideTarget] = useState<ProcessStep | null>(null);
+  const [overrideName, setOverrideName] = useState("");
+  const [overrideDesc, setOverrideDesc] = useState("");
+  const [savingOverride, setSavingOverride] = useState(false);
   const router = useRouter();
 
   const sensors = useSensors(
@@ -146,6 +164,107 @@ export function ProcessFlowEditor({
       setSteps((prev) => prev.filter((s) => s.id !== stepId).map((s, i) => ({ ...s, stepNumber: i + 1 })));
       setInputsByStep((prev) => { const next = { ...prev }; delete next[stepId]; return next; });
       setOutputsByStep((prev) => { const next = { ...prev }; delete next[stepId]; return next; });
+    }
+  }
+
+  // ── Link existing step (Shared Steps) ─────────────────────────────────────
+
+  async function searchLinkableSteps(q: string) {
+    const res = await fetch(`/api/plans/${planId}/flow-chart-steps?q=${encodeURIComponent(q)}`);
+    if (res.ok) setLinkResults(await res.json());
+  }
+
+  async function linkStep(stepId: string) {
+    setLinking(true);
+    const res = await fetch(`/api/plans/${planId}/flow-chart-steps`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ stepId }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const newStep: ProcessStep = {
+        ...data.step,
+        junctionId: data.junctionId,
+        sequence: data.sequence,
+        isShared: true,
+        localOverrides: null,
+        masterName: data.step.name,
+        masterDescription: data.step.description,
+      };
+      setSteps((prev) => [...prev, newStep]);
+      setShowLinkDialog(false);
+      setLinkSearch("");
+      setLinkResults([]);
+    }
+    setLinking(false);
+  }
+
+  // ── Local overrides ────────────────────────────────────────────────────────
+
+  function openOverrideEditor(step: ProcessStep) {
+    setOverrideTarget(step);
+    setOverrideName(step.localOverrides?.name ?? "");
+    setOverrideDesc(step.localOverrides?.description ?? "");
+  }
+
+  async function saveOverride() {
+    if (!overrideTarget?.junctionId) return;
+    setSavingOverride(true);
+
+    const overrides: Record<string, string | null> = {};
+    if (overrideName.trim() && overrideName !== overrideTarget.masterName) {
+      overrides.name = overrideName.trim();
+    } else {
+      overrides.name = null; // clear override if same as master
+    }
+    if (overrideDesc.trim() !== (overrideTarget.masterDescription ?? "")) {
+      overrides.description = overrideDesc.trim() || null;
+    }
+
+    const res = await fetch(`/api/plans/${planId}/flow-chart-steps`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        junctionId: overrideTarget.junctionId,
+        localOverrides: overrides,
+      }),
+    });
+
+    if (res.ok) {
+      const { localOverrides } = await res.json();
+      setSteps((prev) =>
+        prev.map((s) =>
+          s.id === overrideTarget.id
+            ? {
+                ...s,
+                localOverrides,
+                name: localOverrides?.name ?? s.masterName ?? s.name,
+                description: localOverrides?.description ?? s.masterDescription ?? s.description,
+              }
+            : s,
+        ),
+      );
+    }
+    setSavingOverride(false);
+    setOverrideTarget(null);
+  }
+
+  async function clearOverride(step: ProcessStep) {
+    if (!step.junctionId) return;
+    const res = await fetch(`/api/plans/${planId}/flow-chart-steps`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ junctionId: step.junctionId, clearOverrides: true }),
+    });
+    if (res.ok) {
+      setSteps((prev) =>
+        prev.map((s) =>
+          s.id === step.id
+            ? { ...s, localOverrides: null, name: s.masterName ?? s.name, description: s.masterDescription ?? s.description }
+            : s,
+        ),
+      );
     }
   }
 
@@ -239,24 +358,145 @@ export function ProcessFlowEditor({
         <div>
           <h2 className="text-lg font-semibold">Process Flow Diagram</h2>
           <p className="text-sm text-neutral-500">
-            Drag to reorder. Click a step to open hazard analysis. Hover a step to add inputs. Click "+ Add step to flow" inside an input to define its handling sub-flow.
+            Drag to reorder. Click a step to open hazard analysis. Hover a step to add inputs.
           </p>
         </div>
-        <div className="flex items-center gap-4 text-xs text-neutral-500">
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-sm border-2 border-red-400 bg-red-50" /> CCP
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-sm border-2 border-neutral-300 bg-white" /> Process Step
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-sm bg-green-100 border border-green-300" /> Input subgraph
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-sm bg-teal-100 border border-teal-300" /> Output
-          </span>
+        <div className="flex items-center gap-4">
+          {/* Legend */}
+          <div className="flex items-center gap-3 text-xs text-neutral-500">
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-sm border-2 border-red-400 bg-red-50" /> CCP
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-sm border-2 border-neutral-300 bg-white" /> Step
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-sm bg-violet-100 border border-violet-300" /> Shared
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-sm bg-teal-100 border border-teal-300" /> Output
+            </span>
+          </div>
+          {/* Link existing step button */}
+          <Button variant="outline" size="sm" onClick={() => { setShowLinkDialog(true); searchLinkableSteps(""); }}>
+            <svg className="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+            </svg>
+            Link Shared Step
+          </Button>
         </div>
       </div>
+
+      {/* ── Link Step dialog ──────────────────────────────────────────────── */}
+      {showLinkDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-2xl w-[520px] max-h-[80vh] flex flex-col overflow-hidden">
+            <div className="px-5 py-4 border-b flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-semibold">Link Shared Step</h3>
+                <p className="text-xs text-neutral-500 mt-0.5">
+                  Add an existing step from any plan. Hazards &amp; controls always stay with the master step.
+                </p>
+              </div>
+              <button onClick={() => { setShowLinkDialog(false); setLinkResults([]); setLinkSearch(""); }} className="text-neutral-400 hover:text-neutral-700">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-4 border-b">
+              <input
+                type="text"
+                placeholder="Search by step name or plan…"
+                value={linkSearch}
+                onChange={(e) => { setLinkSearch(e.target.value); searchLinkableSteps(e.target.value); }}
+                className="w-full text-sm border rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-neutral-400"
+                autoFocus
+              />
+            </div>
+            <div className="flex-1 overflow-y-auto p-2">
+              {linkResults.length === 0 ? (
+                <p className="text-sm text-neutral-400 text-center py-8">
+                  {linkSearch ? "No matching steps found." : "Search for a step to link."}
+                </p>
+              ) : (
+                linkResults.map((step) => (
+                  <button
+                    key={step.id}
+                    onClick={() => linkStep(step.id)}
+                    disabled={linking}
+                    className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-neutral-50 flex items-start gap-3 disabled:opacity-50 border border-transparent hover:border-neutral-200 mb-1"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-neutral-900">{step.name}</p>
+                      {step.description && (
+                        <p className="text-xs text-neutral-500 truncate">{step.description}</p>
+                      )}
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="text-[10px] text-neutral-400 font-medium">{step.homePlanName}</p>
+                      {step.isSharedMaster && (
+                        <span className="text-[10px] text-violet-600 font-semibold">Shared</span>
+                      )}
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Local Overrides dialog ────────────────────────────────────────── */}
+      {overrideTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-2xl w-[440px] overflow-hidden">
+            <div className="px-5 py-4 border-b">
+              <h3 className="text-base font-semibold">Local Overrides</h3>
+              <p className="text-xs text-neutral-500 mt-0.5">
+                Override display name and description for this flow chart only.
+                Hazards and controls always follow the master step.
+              </p>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="text-xs font-medium text-neutral-700 block mb-1">
+                  Name
+                  <span className="ml-1 text-neutral-400 font-normal">(master: {overrideTarget.masterName})</span>
+                </label>
+                <input
+                  type="text"
+                  value={overrideName}
+                  onChange={(e) => setOverrideName(e.target.value)}
+                  placeholder={overrideTarget.masterName ?? ""}
+                  className="w-full text-sm border rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-neutral-400"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-neutral-700 block mb-1">Description</label>
+                <textarea
+                  value={overrideDesc}
+                  onChange={(e) => setOverrideDesc(e.target.value)}
+                  placeholder={overrideTarget.masterDescription ?? ""}
+                  rows={2}
+                  className="w-full text-sm border rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-neutral-400 resize-none"
+                />
+              </div>
+            </div>
+            <div className="px-5 pb-5 flex items-center gap-2">
+              <Button onClick={saveOverride} disabled={savingOverride} size="sm">
+                {savingOverride ? "Saving…" : "Save Override"}
+              </Button>
+              {(overrideTarget.localOverrides?.name || overrideTarget.localOverrides?.description) && (
+                <Button variant="outline" size="sm" onClick={() => { clearOverride(overrideTarget); setOverrideTarget(null); }}>
+                  Clear Override
+                </Button>
+              )}
+              <Button variant="ghost" size="sm" onClick={() => setOverrideTarget(null)}>Cancel</Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/*
         Layout: [inputs: w-52] [left arrow: w-12] [step box: flex-1] [right arrow: w-12] [outputs: w-52]
@@ -279,6 +519,9 @@ export function ProcessFlowEditor({
                   step={step}
                   hazardCount={hazardCounts[step.id] || 0}
                   hazardTypes={hazardTypesByStep[step.id] || []}
+                  isShared={!!(step.isShared || step.isSharedMaster)}
+                  hasLocalOverride={!!(step.localOverrides?.name || step.localOverrides?.description)}
+                  onOverride={() => openOverrideEditor(step)}
                   planId={planId}
                   onDelete={() => deleteStep(step.id)}
                   inputs={inputsByStep[step.id] || []}

@@ -34,13 +34,43 @@ export const processSteps = sqliteTable("process_steps", {
   name: text("name").notNull(),
   description: text("description"),
   category: text("category"), // receiving | storage | processing | packaging | shipping
+  // stepType mirrors the Codex/FSEP canonical category enum:
+  // processing | storage | transport | inspection | other
+  stepType: text("step_type"),
   isCcp: integer("is_ccp", { mode: "boolean" }).notNull().default(false),
   ccpNumber: text("ccp_number"), // e.g. "CCP-1"
   notes: text("notes"),
+  // true when this step is referenced by more than one flow chart
+  isSharedMaster: integer("is_shared_master", { mode: "boolean" }).notNull().default(false),
   createdAt: text("created_at")
     .notNull()
     .default(sql`(datetime('now'))`),
   updatedAt: text("updated_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+// ─── FlowChart–Step Junction (Shared Steps) ─────────────────────────────────
+//
+// One row per (flowChart, step) pair.  When a step appears in only one flow
+// chart this mirrors processSteps.planId / stepNumber.  When it appears in
+// multiple flow charts each row carries its own sequence and optional local
+// overrides for name / description (hazards & controls are NEVER overridden).
+
+export const flowChartSteps = sqliteTable("flow_chart_steps", {
+  id: text("id").primaryKey(),
+  flowChartId: text("flow_chart_id")
+    .notNull()
+    .references(() => haccpPlans.id, { onDelete: "cascade" }),
+  stepId: text("step_id")
+    .notNull()
+    .references(() => processSteps.id, { onDelete: "cascade" }),
+  sequence: integer("sequence").notNull(),
+  isShared: integer("is_shared", { mode: "boolean" }).notNull().default(false),
+  // JSON: { name?: string, description?: string }
+  // Only step-level display attributes. Hazards/controls are always master.
+  localOverrides: text("local_overrides"),
+  createdAt: text("created_at")
     .notNull()
     .default(sql`(datetime('now'))`),
 });

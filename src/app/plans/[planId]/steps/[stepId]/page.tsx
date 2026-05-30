@@ -101,7 +101,7 @@ export default async function StepAnalysisPage({
   return (
     <StepAnalysis
       planId={planId}
-      step={step}
+      step={step as any}
       hazardAssignments={hazardData}
       ccpData={ccpData}
       availableHazards={allHazards}

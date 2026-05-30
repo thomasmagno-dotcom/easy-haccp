@@ -84,6 +84,11 @@ export function StepAnalysis({
             {isCcp && (
               <Badge variant="destructive">{ccpNumber}</Badge>
             )}
+            {step.isSharedMaster && (
+              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-violet-100 text-violet-700 border border-violet-200">
+                Shared Step
+              </span>
+            )}
           </div>
           {step.description && (
             <p className="text-sm text-neutral-500 mt-1 ml-8">

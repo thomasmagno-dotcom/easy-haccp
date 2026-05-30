@@ -35,6 +35,13 @@ export interface ControlMeasure {
   createdAt: string;
 }
 
+export type StepType =
+  | "processing"
+  | "storage"
+  | "transport"
+  | "inspection"
+  | "other";
+
 export interface ProcessStep {
   id: string;
   planId: string;
@@ -42,11 +49,35 @@ export interface ProcessStep {
   name: string;
   description: string | null;
   category: string | null;
+  stepType: StepType | null;
   isCcp: boolean;
   ccpNumber: string | null;
   notes: string | null;
+  isSharedMaster: boolean;
   createdAt: string;
   updatedAt: string;
+  // Junction fields — present when step is fetched via flow chart
+  junctionId?: string;
+  sequence?: number;
+  isShared?: boolean;
+  localOverrides?: FlowChartStepOverrides | null;
+}
+
+export interface FlowChartStepOverrides {
+  name?: string;
+  description?: string;
+}
+
+export interface FlowChartStep {
+  id: string;
+  flowChartId: string;
+  stepId: string;
+  sequence: number;
+  isShared: boolean;
+  localOverrides: FlowChartStepOverrides | null;
+  createdAt: string;
+  // Joined step data
+  step?: ProcessStep;
 }
 
 export interface CriticalLimit {
