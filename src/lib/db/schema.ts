@@ -50,6 +50,60 @@ export const processSteps = sqliteTable("process_steps", {
     .default(sql`(datetime('now'))`),
 });
 
+// ─── Flow Charts (Multiple Flow Charts per HACCP Plan) ──────────────────────
+//
+// A single HACCP Plan can contain multiple independent flow charts:
+// e.g. main process, by-product stream, incoming ingredient sub-flow, etc.
+// Each FlowChart contains an ordered set of Steps via the FlowChartStep junction.
+
+export const flowCharts = sqliteTable("flow_charts", {
+  id: text("id").primaryKey(),
+  haccpPlanId: text("haccp_plan_id")
+    .notNull()
+    .references(() => haccpPlans.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  // main_process | byproduct | incoming_ingredient | waste_stream | other
+  flowChartType: text("flow_chart_type").notNull().default("main_process"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+// ─── StepConnection (Graph Edges) ───────────────────────────────────────────
+//
+// Directed edges in the process graph.  An Output of any Step in any FlowChart
+// can feed as Input into any other Step in any FlowChart of the same plan.
+// The app enforces a DAG (no circular references).
+
+export const stepConnections = sqliteTable("step_connections", {
+  id: text("id").primaryKey(),
+  sourceStepId: text("source_step_id")
+    .notNull()
+    .references(() => processSteps.id, { onDelete: "cascade" }),
+  sourceOutputId: text("source_output_id")
+    .notNull()
+    .references(() => stepOutputs.id, { onDelete: "cascade" }),
+  targetStepId: text("target_step_id")
+    .notNull()
+    .references(() => processSteps.id, { onDelete: "cascade" }),
+  sourceFlowChartId: text("source_flow_chart_id")
+    .notNull()
+    .references(() => flowCharts.id, { onDelete: "cascade" }),
+  targetFlowChartId: text("target_flow_chart_id")
+    .notNull()
+    .references(() => flowCharts.id, { onDelete: "cascade" }),
+  // direct   = output physically moves to the next step
+  // reference = shared/linked step, operates independently
+  connectionType: text("connection_type").notNull(),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
 // ─── FlowChart–Step Junction (Shared Steps) ─────────────────────────────────
 //
 // One row per (flowChart, step) pair.  When a step appears in only one flow
@@ -61,7 +115,7 @@ export const flowChartSteps = sqliteTable("flow_chart_steps", {
   id: text("id").primaryKey(),
   flowChartId: text("flow_chart_id")
     .notNull()
-    .references(() => haccpPlans.id, { onDelete: "cascade" }),
+    .references(() => flowCharts.id, { onDelete: "cascade" }),
   stepId: text("step_id")
     .notNull()
     .references(() => processSteps.id, { onDelete: "cascade" }),

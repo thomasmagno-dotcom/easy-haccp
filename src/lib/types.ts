@@ -68,6 +68,42 @@ export interface FlowChartStepOverrides {
   description?: string;
 }
 
+export type FlowChartType =
+  | "main_process"
+  | "byproduct"
+  | "incoming_ingredient"
+  | "waste_stream"
+  | "other";
+
+export type ConnectionType = "direct" | "reference";
+
+export interface FlowChart {
+  id: string;
+  haccpPlanId: string;
+  name: string;
+  description: string | null;
+  flowChartType: FlowChartType;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StepConnection {
+  id: string;
+  sourceStepId: string;
+  sourceOutputId: string;
+  targetStepId: string;
+  sourceFlowChartId: string;
+  targetFlowChartId: string;
+  connectionType: ConnectionType;
+  createdAt: string;
+  // Joined display data
+  sourceStepName?: string;
+  targetStepName?: string;
+  sourceOutputName?: string;
+  sourceFlowChartName?: string;
+  targetFlowChartName?: string;
+}
+
 export interface FlowChartStep {
   id: string;
   flowChartId: string;

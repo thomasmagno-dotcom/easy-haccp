@@ -47,6 +47,21 @@ interface StepOutput {
   ccpNumber: string | null;
 }
 
+interface StepConnectionInfo {
+  id: string;
+  sourceStepId: string;
+  targetStepId: string;
+  sourceOutputId: string;
+  connectionType: string;
+  sourceStepName: string | null;
+  targetStepName: string | null;
+  sourceOutputName: string | null;
+  sourceFlowChartName: string | null;
+  targetFlowChartName: string | null;
+  sourceFlowChartId: string;
+  targetFlowChartId: string;
+}
+
 interface Props {
   step: ProcessStep;
   hazardCount: number;
@@ -55,6 +70,7 @@ interface Props {
   hasLocalOverride: boolean;       // true if name/desc overridden locally
   onOverride: () => void;          // open local override editor
   planId: string;
+  activeFlowChartId: string;
   onDelete: () => void;
   inputs: StepInput[];
   subgraphStepsByInput: Record<string, SubgraphStep[]>;
@@ -65,6 +81,8 @@ interface Props {
   onMoveSubgraphStep: (inputId: string, subgraphStepId: string, direction: "up" | "down") => void;
   outputs: StepOutput[];
   hazardTypesByOutput: Record<string, string[]>;  // outputId → hazard types
+  connectionsFromOutput: Record<string, StepConnectionInfo[]>; // outputId → outgoing connections
+  connectionsToStep: StepConnectionInfo[];                      // incoming connections to this step
 }
 
 // ── Style config ──────────────────────────────────────────────────────────────
@@ -331,11 +349,12 @@ function InputSubgraphBox({
 
 export function FlowNode({
   step, hazardCount, hazardTypes, isShared, hasLocalOverride, onOverride,
-  planId, onDelete,
+  planId, activeFlowChartId, onDelete,
   inputs, subgraphStepsByInput,
   onAddInput, onDeleteInput,
   onAddSubgraphStep, onDeleteSubgraphStep, onMoveSubgraphStep,
   outputs, hazardTypesByOutput,
+  connectionsFromOutput, connectionsToStep,
 }: Props) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: step.id });
   const [showInputForm, setShowInputForm] = useState(false);
@@ -493,7 +512,7 @@ export function FlowNode({
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-2 mt-0.5">
+            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
               {step.category && (
                 <span className="text-xs text-neutral-500 capitalize">
                   {CATEGORY_ICONS[step.category] ?? ""} {step.category}
@@ -501,6 +520,11 @@ export function FlowNode({
               )}
               {step.description && (
                 <span className="text-xs text-neutral-400 truncate hidden sm:inline">— {step.description}</span>
+              )}
+              {connectionsToStep.length > 0 && (
+                <span className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 font-medium shrink-0">
+                  ← {connectionsToStep.length} input{connectionsToStep.length > 1 ? "s" : ""} connected
+                </span>
               )}
             </div>
           </div>
@@ -582,13 +606,43 @@ export function FlowNode({
                   </span>
                 )}
               </div>
-              {/* Output name + hazard type badges */}
+              {/* Output name + hazard type badges + connection indicator */}
               <div className="bg-white px-2 py-1.5">
                 <p className="text-xs font-semibold text-neutral-700 truncate leading-tight">{out.name}</p>
                 {out.description && (
                   <p className="text-[10px] text-neutral-400 truncate mt-0.5">{out.description}</p>
                 )}
                 <HazardTypeBadges types={hazardTypesByOutput[out.id] || []} size="xs" />
+                {/* Outgoing connections */}
+                {(connectionsFromOutput[out.id] ?? []).map((conn) => {
+                  const isCross = conn.targetFlowChartId !== activeFlowChartId;
+                  return (
+                    <div key={conn.id} className="mt-1 flex items-center gap-1">
+                      <span className={`text-[9px] font-semibold px-1 rounded ${
+                        conn.connectionType === "direct"
+                          ? "bg-blue-100 text-blue-700"
+                          : "bg-purple-100 text-purple-700"
+                      }`}>
+                        {conn.connectionType === "direct" ? "→" : "⤷"}
+                      </span>
+                      <span className="text-[9px] text-neutral-600 truncate">
+                        {conn.targetStepName}
+                        {isCross && conn.targetFlowChartName ? ` (${conn.targetFlowChartName})` : ""}
+                      </span>
+                    </div>
+                  );
+                })}
+                {/* Connect button */}
+                <a
+                  href={`/plans/${planId}/steps/${step.id}/outputs/${out.id}?connect=1`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="mt-1 inline-flex items-center gap-0.5 text-[9px] text-neutral-400 hover:text-blue-600 transition-colors"
+                >
+                  <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                  </svg>
+                  Connect
+                </a>
               </div>
             </Link>
           );

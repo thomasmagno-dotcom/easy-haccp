@@ -75,8 +75,31 @@ interface StepOutput {
   ccpNumber: string | null;
 }
 
+interface FlowChart {
+  id: string;
+  name: string;
+  flowChartType: string;
+}
+
+interface StepConnectionInfo {
+  id: string;
+  sourceStepId: string;
+  targetStepId: string;
+  sourceOutputId: string;
+  connectionType: string;
+  sourceStepName: string | null;
+  targetStepName: string | null;
+  sourceOutputName: string | null;
+  sourceFlowChartName: string | null;
+  targetFlowChartName: string | null;
+  sourceFlowChartId: string;
+  targetFlowChartId: string;
+}
+
 interface Props {
   planId: string;
+  flowCharts?: FlowChart[];
+  activeFlowChartId?: string;
   initialSteps: ProcessStep[];
   hazardCounts: Record<string, number>;
   hazardTypesByStep?: Record<string, string[]>;
@@ -84,10 +107,22 @@ interface Props {
   initialSubgraphSteps: Record<string, SubgraphStep[]>;
   initialOutputsByStep?: Record<string, StepOutput[]>;
   hazardTypesByOutput?: Record<string, string[]>;
+  connectionsFromOutput?: Record<string, StepConnectionInfo[]>;
+  connectionsToStep?: Record<string, StepConnectionInfo[]>;
 }
+
+const FLOW_CHART_TYPE_LABELS: Record<string, string> = {
+  main_process:        "Main Process",
+  byproduct:           "By-Product",
+  incoming_ingredient: "Incoming Ingredient",
+  waste_stream:        "Waste Stream",
+  other:               "Other",
+};
 
 export function ProcessFlowEditor({
   planId,
+  flowCharts: initialFlowCharts = [],
+  activeFlowChartId,
   initialSteps,
   hazardCounts,
   hazardTypesByStep = {},
@@ -95,6 +130,8 @@ export function ProcessFlowEditor({
   initialSubgraphSteps,
   initialOutputsByStep,
   hazardTypesByOutput = {},
+  connectionsFromOutput = {},
+  connectionsToStep = {},
 }: Props) {
   const [steps, setSteps] = useState(initialSteps);
   const [inputsByStep, setInputsByStep] = useState<Record<string, StepInput[]>>(initialInputs);
@@ -104,6 +141,13 @@ export function ProcessFlowEditor({
   const [newStepCategory, setNewStepCategory] = useState("processing");
   const [adding, setAdding] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
+  // Flow chart management
+  const [flowCharts, setFlowCharts] = useState(initialFlowCharts);
+  const [showNewChartDialog, setShowNewChartDialog] = useState(false);
+  const [newChartName, setNewChartName] = useState("");
+  const [newChartType, setNewChartType] = useState("main_process");
+  const [newChartDesc, setNewChartDesc] = useState("");
+  const [creatingChart, setCreatingChart] = useState(false);
   // Shared Steps — link existing step dialog
   const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [linkSearch, setLinkSearch] = useState("");
@@ -165,6 +209,27 @@ export function ProcessFlowEditor({
       setInputsByStep((prev) => { const next = { ...prev }; delete next[stepId]; return next; });
       setOutputsByStep((prev) => { const next = { ...prev }; delete next[stepId]; return next; });
     }
+  }
+
+  // ── Flow chart management ──────────────────────────────────────────────────
+
+  async function createFlowChart() {
+    if (!newChartName.trim()) return;
+    setCreatingChart(true);
+    const res = await fetch(`/api/plans/${planId}/flow-charts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newChartName.trim(), description: newChartDesc.trim() || null, flowChartType: newChartType }),
+    });
+    if (res.ok) {
+      const created = await res.json();
+      setFlowCharts((prev) => [...prev, created]);
+      setShowNewChartDialog(false);
+      setNewChartName(""); setNewChartDesc(""); setNewChartType("main_process");
+      // Navigate to the new chart
+      router.push(`/plans/${planId}/process-flow?chartId=${created.id}`);
+    }
+    setCreatingChart(false);
   }
 
   // ── Link existing step (Shared Steps) ─────────────────────────────────────
@@ -354,9 +419,99 @@ export function ProcessFlowEditor({
 
   return (
     <div>
+      {/* ── Flow chart tabs ───────────────────────────────────────────────── */}
+      {flowCharts.length > 0 && (
+        <div className="flex items-center gap-1 mb-5 border-b border-neutral-200 pb-0 overflow-x-auto">
+          {flowCharts.map((chart) => {
+            const isActive = chart.id === activeFlowChartId;
+            return (
+              <button
+                key={chart.id}
+                onClick={() => router.push(`/plans/${planId}/process-flow?chartId=${chart.id}`)}
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+                  isActive
+                    ? "border-neutral-900 text-neutral-900"
+                    : "border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300"
+                }`}
+              >
+                <span>{FLOW_CHART_TYPE_LABELS[chart.flowChartType] ?? chart.flowChartType}</span>
+                <span className="text-neutral-500">·</span>
+                <span>{chart.name}</span>
+              </button>
+            );
+          })}
+          <button
+            onClick={() => setShowNewChartDialog(true)}
+            className="px-3 py-2 text-sm text-neutral-400 hover:text-neutral-700 border-b-2 border-transparent flex items-center gap-1 whitespace-nowrap"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v12m6-6H6" />
+            </svg>
+            New Flow Chart
+          </button>
+        </div>
+      )}
+
+      {/* ── New Flow Chart dialog ─────────────────────────────────────────── */}
+      {showNewChartDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-2xl w-[440px] overflow-hidden">
+            <div className="px-5 py-4 border-b flex items-center justify-between">
+              <h3 className="text-base font-semibold">New Flow Chart</h3>
+              <button onClick={() => setShowNewChartDialog(false)} className="text-neutral-400 hover:text-neutral-700">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="text-xs font-medium text-neutral-700 block mb-1">Flow Chart Name *</label>
+                <Input
+                  value={newChartName}
+                  onChange={(e) => setNewChartName(e.target.value)}
+                  placeholder="e.g. Washing Sub-Process"
+                  autoFocus
+                  onKeyDown={(e) => { if (e.key === "Enter") createFlowChart(); }}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-neutral-700 block mb-1">Type</label>
+                <Select value={newChartType} onValueChange={(v) => v && setNewChartType(v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="main_process">Main Process</SelectItem>
+                    <SelectItem value="byproduct">By-Product Stream</SelectItem>
+                    <SelectItem value="incoming_ingredient">Incoming Ingredient</SelectItem>
+                    <SelectItem value="waste_stream">Waste Stream</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-neutral-700 block mb-1">Description</label>
+                <Input
+                  value={newChartDesc}
+                  onChange={(e) => setNewChartDesc(e.target.value)}
+                  placeholder="Optional description"
+                />
+              </div>
+            </div>
+            <div className="px-5 pb-5 flex gap-2">
+              <Button onClick={createFlowChart} disabled={creatingChart || !newChartName.trim()}>
+                {creatingChart ? "Creating…" : "Create Flow Chart"}
+              </Button>
+              <Button variant="ghost" onClick={() => setShowNewChartDialog(false)}>Cancel</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-lg font-semibold">Process Flow Diagram</h2>
+          <h2 className="text-lg font-semibold">
+            {flowCharts.find((c) => c.id === activeFlowChartId)?.name ?? "Process Flow Diagram"}
+          </h2>
           <p className="text-sm text-neutral-500">
             Drag to reorder. Click a step to open hazard analysis. Hover a step to add inputs.
           </p>
@@ -522,7 +677,6 @@ export function ProcessFlowEditor({
                   isShared={!!(step.isShared || step.isSharedMaster)}
                   hasLocalOverride={!!(step.localOverrides?.name || step.localOverrides?.description)}
                   onOverride={() => openOverrideEditor(step)}
-                  planId={planId}
                   onDelete={() => deleteStep(step.id)}
                   inputs={inputsByStep[step.id] || []}
                   subgraphStepsByInput={subgraphStepsByInput}
@@ -533,6 +687,10 @@ export function ProcessFlowEditor({
                   onMoveSubgraphStep={(inputId, ssId, dir) => moveSubgraphStep(inputId, ssId, dir)}
                   outputs={(outputsByStep ?? {})[step.id] ?? []}
                   hazardTypesByOutput={hazardTypesByOutput}
+                  connectionsFromOutput={connectionsFromOutput}
+                  connectionsToStep={connectionsToStep[step.id] ?? []}
+                  activeFlowChartId={activeFlowChartId ?? ""}
+                  planId={planId}
                 />
                 {/* Arrow connector — centered under the step box */}
                 {index < steps.length - 1 && (

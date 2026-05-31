@@ -1,64 +1,42 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { processSteps, flowChartSteps } from "@/lib/db/schema";
-import { eq, asc, inArray } from "drizzle-orm";
+import { eq, asc } from "drizzle-orm";
 import { generateId } from "@/lib/utils";
 import { logAudit } from "@/lib/audit";
 import { getNextNumber } from "@/lib/logic/numbering";
+import { ensureDefaultFlowChart, ensureJunction } from "@/lib/logic/flow-chart";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/** Parse localOverrides JSON safely. */
 function parseOverrides(json: string | null): { name?: string; description?: string } {
   if (!json) return {};
   try { return JSON.parse(json); } catch { return {}; }
 }
 
 /**
- * Ensure the flow_chart_steps junction is populated for this plan.
- * If no junction records exist yet (legacy plan), auto-create one row per step.
- * This is idempotent and transparent to the caller.
+ * Get the active flow chart for a plan (from optional ?chartId param or default).
+ * Also ensures junction is populated.
  */
-async function ensureJunction(planId: string): Promise<void> {
-  const existing = await db
-    .select({ id: flowChartSteps.id })
-    .from(flowChartSteps)
-    .where(eq(flowChartSteps.flowChartId, planId))
-    .all();
-
-  if (existing.length > 0) return; // already migrated
-
-  const steps = await db
-    .select()
-    .from(processSteps)
-    .where(eq(processSteps.planId, planId))
-    .orderBy(asc(processSteps.stepNumber))
-    .all();
-
-  for (const step of steps) {
-    await db.insert(flowChartSteps).values({
-      id: generateId(),
-      flowChartId: planId,
-      stepId: step.id,
-      sequence: step.stepNumber,
-      isShared: false,
-      localOverrides: null,
-    }).run();
+async function resolveFlowChart(planId: string, chartId?: string | null) {
+  if (chartId) {
+    await ensureJunction(chartId, planId);
+    return chartId;
   }
+  const chart = await ensureDefaultFlowChart(planId);
+  await ensureJunction(chart.id, planId);
+  return chart.id;
 }
 
 /**
- * Fetch all steps for a plan via the junction, in sequence order,
- * with local overrides merged into the step data.
+ * Fetch all steps for a flow chart via the junction, with local overrides applied.
  */
-async function getStepsForPlan(planId: string) {
-  await ensureJunction(planId);
-
+async function getStepsForChart(flowChartId: string) {
   const rows = await db
     .select({ junction: flowChartSteps, step: processSteps })
     .from(flowChartSteps)
     .innerJoin(processSteps, eq(flowChartSteps.stepId, processSteps.id))
-    .where(eq(flowChartSteps.flowChartId, planId))
+    .where(eq(flowChartSteps.flowChartId, flowChartId))
     .orderBy(asc(flowChartSteps.sequence))
     .all();
 
@@ -66,33 +44,34 @@ async function getStepsForPlan(planId: string) {
     const overrides = parseOverrides(junction.localOverrides);
     return {
       ...step,
-      // Junction metadata
       junctionId: junction.id,
       sequence: junction.sequence,
       isShared: junction.isShared,
       localOverrides: overrides,
-      // Apply local display overrides (name/description only)
       name:        overrides.name        ?? step.name,
       description: overrides.description ?? step.description,
-      // Preserve master name for the UI to distinguish overrides
       masterName:        step.name,
       masterDescription: step.description,
     };
   });
 }
 
-// ── GET — list steps for a plan ───────────────────────────────────────────────
+// ── GET ────────────────────────────────────────────────────────────────────────
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ planId: string }> },
 ) {
   const { planId } = await params;
-  const steps = await getStepsForPlan(planId);
+  const { searchParams } = new URL(req.url);
+  const chartId = searchParams.get("chartId");
+
+  const flowChartId = await resolveFlowChart(planId, chartId);
+  const steps = await getStepsForChart(flowChartId);
   return NextResponse.json(steps);
 }
 
-// ── POST — create step OR reorder ─────────────────────────────────────────────
+// ── POST ───────────────────────────────────────────────────────────────────────
 
 export async function POST(
   req: Request,
@@ -100,67 +79,52 @@ export async function POST(
 ) {
   const { planId } = await params;
   const body = await req.json();
+  const { searchParams } = new URL(req.url);
+  const chartId = searchParams.get("chartId");
 
-  // ── Reorder action ────────────────────────────────────────────────────────
+  const flowChartId = await resolveFlowChart(planId, chartId);
+
+  // ── Reorder ──
   if (body.action === "reorder") {
-    await ensureJunction(planId);
     const { stepIds } = body as { action: string; stepIds: string[] };
-
-    // Update sequence in junction
     for (let i = 0; i < stepIds.length; i++) {
-      await db.update(flowChartSteps)
-        .set({ sequence: i + 1 })
-        .where(
-          eq(flowChartSteps.flowChartId, planId),
-        )
-        .run();
-      // Target specific step in this chart
+      // Find junction row for this (flowChart, step)
       const jRows = await db
         .select()
         .from(flowChartSteps)
         .where(eq(flowChartSteps.stepId, stepIds[i]))
         .all();
-      const jRow = jRows.find((j) => j.flowChartId === planId);
+      const jRow = jRows.find((j) => j.flowChartId === flowChartId);
       if (jRow) {
         await db.update(flowChartSteps)
           .set({ sequence: i + 1 })
           .where(eq(flowChartSteps.id, jRow.id))
           .run();
       }
-
-      // Also keep processSteps.stepNumber in sync for backward compat
-      // (only if this plan is the home plan for the step)
+      // Sync stepNumber on home plan's steps
       const step = await db.select().from(processSteps).where(eq(processSteps.id, stepIds[i])).get();
       if (step?.planId === planId) {
-        await db.update(processSteps)
-          .set({ stepNumber: i + 1 })
-          .where(eq(processSteps.id, stepIds[i]))
-          .run();
+        await db.update(processSteps).set({ stepNumber: i + 1 }).where(eq(processSteps.id, stepIds[i])).run();
       }
     }
     return NextResponse.json({ success: true });
   }
 
-  // ── Create new step ────────────────────────────────────────────────────────
-  await ensureJunction(planId);
-
-  // Next sequence = max existing sequence + 1
+  // ── Create step ──
   const jRows = await db
     .select({ sequence: flowChartSteps.sequence })
     .from(flowChartSteps)
-    .where(eq(flowChartSteps.flowChartId, planId))
+    .where(eq(flowChartSteps.flowChartId, flowChartId))
     .all();
-  const existingSeqs = jRows.map((j) => j.sequence);
 
   const existingNumberRows = await db
     .select({ stepNumber: processSteps.stepNumber })
     .from(processSteps)
     .where(eq(processSteps.planId, planId))
     .all();
-  const existingNumbers = existingNumberRows.map((s) => s.stepNumber);
 
-  const nextNumber = body.stepNumber ?? getNextNumber(existingNumbers);
-  const nextSeq   = existingSeqs.length > 0 ? Math.max(...existingSeqs) + 1 : nextNumber;
+  const nextNumber = body.stepNumber ?? getNextNumber(existingNumberRows.map((s) => s.stepNumber));
+  const nextSeq = jRows.length > 0 ? Math.max(...jRows.map((j) => j.sequence)) + 1 : nextNumber;
 
   const stepId = generateId();
   const step = {
@@ -178,29 +142,22 @@ export async function POST(
 
   await db.insert(processSteps).values(step).run();
 
-  // Create junction record
   const junctionId = generateId();
   await db.insert(flowChartSteps).values({
     id: junctionId,
-    flowChartId: planId,
+    flowChartId,
     stepId,
     sequence: nextSeq,
     isShared: false,
     localOverrides: null,
   }).run();
 
-  await logAudit({
-    planId,
-    entityType: "process_step",
-    entityId: stepId,
-    action: "create",
-    newValue: step,
-  });
+  await logAudit({ planId, entityType: "process_step", entityId: stepId, action: "create", newValue: step });
 
   return NextResponse.json({ ...step, junctionId, sequence: nextSeq, isShared: false, localOverrides: null }, { status: 201 });
 }
 
-// ── PUT — update step master OR junction local overrides ──────────────────────
+// ── PUT ────────────────────────────────────────────────────────────────────────
 
 export async function PUT(
   req: Request,
@@ -209,55 +166,42 @@ export async function PUT(
   const { planId } = await params;
   const body = await req.json();
   const { id, localOverrides, ...masterUpdates } = body;
+  const { searchParams } = new URL(req.url);
+  const chartId = searchParams.get("chartId");
 
   const step = await db.select().from(processSteps).where(eq(processSteps.id, id)).get();
   if (!step) return NextResponse.json({ error: "Step not found" }, { status: 404 });
 
-  // If caller is updating localOverrides for this flow chart, write to junction
+  // Local overrides → write to junction for this chart
   if (localOverrides !== undefined) {
-    const jRows = await db
-      .select()
-      .from(flowChartSteps)
-      .where(eq(flowChartSteps.stepId, id))
-      .all();
-    const jRow = jRows.find((j) => j.flowChartId === planId);
+    const flowChartId = await resolveFlowChart(planId, chartId);
+    const jRows = await db.select().from(flowChartSteps).where(eq(flowChartSteps.stepId, id)).all();
+    const jRow = jRows.find((j) => j.flowChartId === flowChartId);
     if (jRow) {
-      // Merge with existing overrides
       const existing = parseOverrides(jRow.localOverrides);
-      const merged = { ...existing, ...localOverrides };
-      // Remove nulled-out keys
-      for (const key of Object.keys(merged)) {
-        if (merged[key as keyof typeof merged] === null) delete merged[key as keyof typeof merged];
-      }
+      const merged = Object.fromEntries(
+        Object.entries({ ...existing, ...localOverrides }).filter(([, v]) => v !== null),
+      );
       await db.update(flowChartSteps)
-        .set({ localOverrides: JSON.stringify(merged) })
+        .set({ localOverrides: Object.keys(merged).length > 0 ? JSON.stringify(merged) : null })
         .where(eq(flowChartSteps.id, jRow.id))
         .run();
     }
   }
 
-  // Update master step fields (excluding hazard/control fields — those are
-  // always read directly from the master and cannot be locally overridden)
+  // Master fields (isCcp, ccpNumber, category, notes, etc.)
   const previous = step;
   if (Object.keys(masterUpdates).length > 0) {
     await db.update(processSteps).set(masterUpdates).where(eq(processSteps.id, id)).run();
   }
 
   const updated = await db.select().from(processSteps).where(eq(processSteps.id, id)).get();
-
-  await logAudit({
-    planId,
-    entityType: "process_step",
-    entityId: id,
-    action: "update",
-    previousValue: previous,
-    newValue: updated,
-  });
+  await logAudit({ planId, entityType: "process_step", entityId: id, action: "update", previousValue: previous, newValue: updated });
 
   return NextResponse.json(updated);
 }
 
-// ── DELETE — unlink from this flow chart (or delete if sole reference) ────────
+// ── DELETE ─────────────────────────────────────────────────────────────────────
 
 export async function DELETE(
   req: Request,
@@ -266,68 +210,47 @@ export async function DELETE(
   const { planId } = await params;
   const { searchParams } = new URL(req.url);
   const stepId = searchParams.get("stepId");
+  const chartId = searchParams.get("chartId");
 
   if (!stepId) return NextResponse.json({ error: "stepId required" }, { status: 400 });
 
-  await ensureJunction(planId);
+  const flowChartId = await resolveFlowChart(planId, chartId);
 
-  // Find the junction record for this (plan, step)
-  const allJunctions = await db
-    .select()
-    .from(flowChartSteps)
-    .where(eq(flowChartSteps.stepId, stepId))
-    .all();
-  const thisJunction = allJunctions.find((j) => j.flowChartId === planId);
-
-  // Remove from this flow chart's junction
+  // Find and remove junction record for this (chart, step)
+  const allJunctions = await db.select().from(flowChartSteps).where(eq(flowChartSteps.stepId, stepId)).all();
+  const thisJunction = allJunctions.find((j) => j.flowChartId === flowChartId);
   if (thisJunction) {
     await db.delete(flowChartSteps).where(eq(flowChartSteps.id, thisJunction.id)).run();
   }
 
-  const otherRefs = allJunctions.filter((j) => j.flowChartId !== planId);
+  const otherRefs = allJunctions.filter((j) => j.flowChartId !== flowChartId);
 
   if (otherRefs.length === 0) {
-    // No other flow charts reference this step — delete the master
+    // No other charts reference this step — delete master
     const previous = await db.select().from(processSteps).where(eq(processSteps.id, stepId)).get();
     await db.delete(processSteps).where(eq(processSteps.id, stepId)).run();
     await logAudit({ planId, entityType: "process_step", entityId: stepId, action: "delete", previousValue: previous });
   } else {
-    // Step still referenced by other charts — just clear isSharedMaster if only 1 left
     if (otherRefs.length === 1) {
-      await db.update(processSteps)
-        .set({ isSharedMaster: false })
-        .where(eq(processSteps.id, stepId))
-        .run();
+      await db.update(processSteps).set({ isSharedMaster: false }).where(eq(processSteps.id, stepId)).run();
     }
-    // Update isShared flag on remaining junctions
     for (const j of otherRefs) {
-      await db.update(flowChartSteps)
-        .set({ isShared: otherRefs.length > 1 })
-        .where(eq(flowChartSteps.id, j.id))
-        .run();
+      await db.update(flowChartSteps).set({ isShared: otherRefs.length > 1 }).where(eq(flowChartSteps.id, j.id)).run();
     }
-    await logAudit({ planId, entityType: "process_step", entityId: stepId, action: "update", newValue: { unlinkedFrom: planId } });
   }
 
-  // Re-sequence remaining steps in this plan
-  const remaining = await db
-    .select()
-    .from(flowChartSteps)
-    .where(eq(flowChartSteps.flowChartId, planId))
+  // Re-sequence remaining steps in this chart
+  const remaining = await db.select().from(flowChartSteps)
+    .where(eq(flowChartSteps.flowChartId, flowChartId))
     .orderBy(asc(flowChartSteps.sequence))
     .all();
 
   for (let i = 0; i < remaining.length; i++) {
-    const newSeq = i + 1;
-    if (remaining[i].sequence !== newSeq) {
-      await db.update(flowChartSteps)
-        .set({ sequence: newSeq })
-        .where(eq(flowChartSteps.id, remaining[i].id))
-        .run();
-      // Keep master stepNumber in sync if home plan
-      const masterStep = await db.select().from(processSteps).where(eq(processSteps.id, remaining[i].stepId)).get();
-      if (masterStep?.planId === planId) {
-        await db.update(processSteps).set({ stepNumber: newSeq }).where(eq(processSteps.id, remaining[i].stepId)).run();
+    if (remaining[i].sequence !== i + 1) {
+      await db.update(flowChartSteps).set({ sequence: i + 1 }).where(eq(flowChartSteps.id, remaining[i].id)).run();
+      const ms = await db.select().from(processSteps).where(eq(processSteps.id, remaining[i].stepId)).get();
+      if (ms?.planId === planId) {
+        await db.update(processSteps).set({ stepNumber: i + 1 }).where(eq(processSteps.id, remaining[i].stepId)).run();
       }
     }
   }

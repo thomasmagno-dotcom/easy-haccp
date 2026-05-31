@@ -13,9 +13,10 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { processSteps, flowChartSteps, haccpPlans } from "@/lib/db/schema";
-import { eq, ne, and } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { generateId } from "@/lib/utils";
 import { logAudit } from "@/lib/audit";
+import { ensureDefaultFlowChart } from "@/lib/logic/flow-chart";
 
 const ALLOWED_OVERRIDE_KEYS = new Set(["name", "description"]);
 
@@ -43,12 +44,16 @@ export async function GET(
   const { planId } = await params;
   const { searchParams } = new URL(req.url);
   const query = (searchParams.get("q") ?? "").toLowerCase();
+  const chartId = searchParams.get("chartId");
+  const activeChart = chartId
+    ? { id: chartId }
+    : await ensureDefaultFlowChart(planId);
 
   // All steps in this chart
   const alreadyLinked = await db
     .select({ stepId: flowChartSteps.stepId })
     .from(flowChartSteps)
-    .where(eq(flowChartSteps.flowChartId, planId))
+    .where(eq(flowChartSteps.flowChartId, activeChart.id))
     .all();
   const linkedIds = new Set(alreadyLinked.map((r) => r.stepId));
 
@@ -93,11 +98,17 @@ export async function POST(
   const step = await db.select().from(processSteps).where(eq(processSteps.id, stepId)).get();
   if (!step) return NextResponse.json({ error: "Step not found" }, { status: 404 });
 
+  // Resolve flow chart for POST
+  const bodyChart = body.flowChartId
+    ? { id: body.flowChartId }
+    : await ensureDefaultFlowChart(planId);
+  const activeFlowChartId = bodyChart.id;
+
   // Check not already linked
   const existing = await db
     .select()
     .from(flowChartSteps)
-    .where(and(eq(flowChartSteps.flowChartId, planId), eq(flowChartSteps.stepId, stepId)))
+    .where(and(eq(flowChartSteps.flowChartId, activeFlowChartId), eq(flowChartSteps.stepId, stepId)))
     .get();
   if (existing) return NextResponse.json({ error: "Step already in this flow chart" }, { status: 409 });
 
@@ -105,7 +116,7 @@ export async function POST(
   const jRows = await db
     .select({ sequence: flowChartSteps.sequence })
     .from(flowChartSteps)
-    .where(eq(flowChartSteps.flowChartId, planId))
+    .where(eq(flowChartSteps.flowChartId, activeFlowChartId))
     .all();
   const nextSeq = jRows.length > 0 ? Math.max(...jRows.map((j) => j.sequence)) + 1 : 1;
 
@@ -114,7 +125,7 @@ export async function POST(
   const junctionId = generateId();
   await db.insert(flowChartSteps).values({
     id: junctionId,
-    flowChartId: planId,
+    flowChartId: activeFlowChartId,
     stepId,
     sequence: nextSeq,
     isShared: true,
@@ -144,13 +155,13 @@ export async function POST(
     entityType: "process_step",
     entityId: stepId,
     action: "update",
-    newValue: { linkedToFlowChart: planId, sequence: nextSeq, overrides },
+    newValue: { linkedToFlowChart: activeFlowChartId, sequence: nextSeq, overrides },
   });
 
   return NextResponse.json({
     junctionId,
     stepId,
-    flowChartId: planId,
+    flowChartId: activeFlowChartId,
     sequence: nextSeq,
     isShared: true,
     localOverrides: overrides,
@@ -170,7 +181,7 @@ export async function PUT(
   if (!junctionId) return NextResponse.json({ error: "junctionId required" }, { status: 400 });
 
   const junction = await db.select().from(flowChartSteps).where(eq(flowChartSteps.id, junctionId)).get();
-  if (!junction || junction.flowChartId !== planId) {
+  if (!junction) {
     return NextResponse.json({ error: "Junction not found" }, { status: 404 });
   }
 
