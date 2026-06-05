@@ -21,6 +21,8 @@ export interface StepHazardAssignment {
   justification: string | null;
   severityOverride: string | null;
   likelihoodOverride: string | null;
+  severityWithControls: string | null;
+  likelihoodWithControls: string | null;
   decisionTreeAnswers: string | null;
   createdAt: string;
   hazard: Hazard;
@@ -273,6 +275,8 @@ export interface OutputHazardAssignment {
   justification: string | null;
   severityOverride: string | null;
   likelihoodOverride: string | null;
+  severityWithControls: string | null;
+  likelihoodWithControls: string | null;
   decisionTreeAnswers: string | null;
   createdAt: string;
   hazard: Hazard;

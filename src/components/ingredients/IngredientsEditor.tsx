@@ -36,7 +36,10 @@ import type {
   IngredientHazardAssignment,
   IngredientControlMeasure,
   Hazard,
+  PrpMaster,
+  HazardPrp,
 } from "@/lib/types";
+import { HazardPrpPicker } from "@/components/prp-registry/HazardPrpPicker";
 import {
   SEVERITY_LEVELS,
   LIKELIHOOD_LEVELS,
@@ -81,9 +84,11 @@ interface Props {
   planId: string;
   initialIngredients: Ingredient[];
   allHazards: Hazard[];
+  allPrps: PrpMaster[];
+  initialPrpLinksByHazardId: Record<string, HazardPrp[]>;
 }
 
-export function IngredientsEditor({ planId, initialIngredients, allHazards: initialAllHazards }: Props) {
+export function IngredientsEditor({ planId, initialIngredients, allHazards: initialAllHazards, allPrps, initialPrpLinksByHazardId }: Props) {
   const [ingredients, setIngredients] = useState<Ingredient[]>(initialIngredients);
   const [allHazards, setAllHazards] = useState<Hazard[]>(initialAllHazards);
   const [expandedIngredientId, setExpandedIngredientId] = useState<string | null>(null);
@@ -505,6 +510,21 @@ export function IngredientsEditor({ planId, initialIngredients, allHazards: init
                             </TableBody>
                           </Table>
 
+                          {/* PRP Registry links — always visible on expanded hazard */}
+                          <div className="border-t bg-white px-3 py-2.5">
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <span className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wide">
+                                Linked PRPs
+                              </span>
+                            </div>
+                            <HazardPrpPicker
+                              hazardId={assignment.hazardId}
+                              hazardName={assignment.hazard.name}
+                              allPrps={allPrps}
+                              initialLinks={initialPrpLinksByHazardId[assignment.hazardId] ?? []}
+                            />
+                          </div>
+
                           {/* Control measures sub-section */}
                           <div className="border-t bg-neutral-50/60">
                             <div
@@ -593,6 +613,7 @@ export function IngredientsEditor({ planId, initialIngredients, allHazards: init
                                     </Button>
                                   </div>
                                 )}
+
                               </div>
                             )}
                           </div>

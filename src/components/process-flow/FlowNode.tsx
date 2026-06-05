@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 interface ProcessStep {
   id: string;
   stepNumber: number;
+  sequence?: number;   // chart-local sequence (1, 2, 3…) — preferred for display
   name: string;
   description: string | null;
   category: string | null;
@@ -56,10 +57,19 @@ interface StepConnectionInfo {
   sourceStepName: string | null;
   targetStepName: string | null;
   sourceOutputName: string | null;
+  sourceOutputType: string | null;
   sourceFlowChartName: string | null;
   targetFlowChartName: string | null;
   sourceFlowChartId: string;
   targetFlowChartId: string;
+  allSourceSteps?: Array<{ stepName: string; stepNumber: number; stepLabel?: string }>;
+}
+
+interface OutputSource {
+  id: string;
+  stepId: string;
+  stepName: string;
+  stepNumber: number;
 }
 
 interface Props {
@@ -79,10 +89,22 @@ interface Props {
   onAddSubgraphStep: (inputId: string, name: string, category: string) => void;
   onDeleteSubgraphStep: (inputId: string, subgraphStepId: string) => void;
   onMoveSubgraphStep: (inputId: string, subgraphStepId: string, direction: "up" | "down") => void;
+  hazardTypesBySubgraphStep: Record<string, string[]>;
   outputs: StepOutput[];
   hazardTypesByOutput: Record<string, string[]>;  // outputId → hazard types
   connectionsFromOutput: Record<string, StepConnectionInfo[]>; // outputId → outgoing connections
   connectionsToStep: StepConnectionInfo[];                      // incoming connections to this step
+  onConnect: (outputId: string, stepId: string) => void;
+  onDeleteConnection: (connectionId: string) => void;
+  onDeleteOutput: (outputId: string, outputName: string) => void;
+  // Output sources (multiple steps producing the same output)
+  outputSourcesByOutput: Record<string, OutputSource[]>; // outputId → additional source steps
+  // Full producing-steps list per output (primary owner + all additional sources)
+  allProducingStepsByOutput: Record<string, Array<{ stepId: string; stepName: string; stepNumber: number; stepLabel: string; sourceId?: string }>>;
+  chartLetter: string;              // "A", "B", "C"… — prefix for this chart's step labels
+  primaryOutputStepId: string;      // step that owns the outputs we're rendering
+  onLinkOutputSource: (outputId: string) => void;
+  onDeleteOutputSource: (sourceId: string, outputId: string, stepId: string) => void;
 }
 
 // ── Style config ──────────────────────────────────────────────────────────────
@@ -168,8 +190,18 @@ const OUTPUT_TYPE_CONFIG: Record<string, { border: string; header: string; icon:
 
 // ── SubgraphStepRow ───────────────────────────────────────────────────────────
 
+const HAZARD_TYPE_BADGE: Record<string, { letter: string; classes: string }> = {
+  biological:   { letter: "B", classes: "bg-red-100 text-red-700 border-red-200"       },
+  chemical:     { letter: "C", classes: "bg-orange-100 text-orange-700 border-orange-200" },
+  physical:     { letter: "P", classes: "bg-blue-100 text-blue-700 border-blue-200"    },
+  allergen:     { letter: "A", classes: "bg-purple-100 text-purple-700 border-purple-200" },
+  radiological: { letter: "R", classes: "bg-yellow-100 text-yellow-700 border-yellow-200" },
+  fraud:        { letter: "F", classes: "bg-neutral-100 text-neutral-600 border-neutral-200" },
+};
+const HAZARD_TYPE_ORDER_SS = ["biological", "chemical", "physical", "allergen", "radiological", "fraud"];
+
 function SubgraphStepRow({
-  ss, isFirst, isLast, onDelete, onMoveUp, onMoveDown,
+  ss, isFirst, isLast, onDelete, onMoveUp, onMoveDown, planId, hazardTypes,
 }: {
   ss: SubgraphStep;
   isFirst: boolean;
@@ -177,8 +209,11 @@ function SubgraphStepRow({
   onDelete: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
+  planId: string;
+  hazardTypes: string[];
 }) {
   const cfg = SUBSTEP_CATEGORY_CONFIG[ss.category ?? "other"] ?? SUBSTEP_CATEGORY_CONFIG.other;
+  const orderedTypes = HAZARD_TYPE_ORDER_SS.filter((t) => (hazardTypes ?? []).includes(t));
 
   return (
     <div className="group/ss flex flex-col items-center w-full">
@@ -189,6 +224,27 @@ function SubgraphStepRow({
         </span>
         <span className="text-[10px]">{cfg.icon}</span>
         <span className="text-xs text-neutral-700 font-medium flex-1 truncate">{ss.name}</span>
+        {/* Hazard type badges */}
+        {orderedTypes.map((type) => {
+          const badge = HAZARD_TYPE_BADGE[type];
+          if (!badge) return null;
+          return (
+            <span
+              key={type}
+              title={type.charAt(0).toUpperCase() + type.slice(1)}
+              className={`inline-flex items-center justify-center font-bold border rounded text-[9px] w-3.5 h-3.5 shrink-0 ${badge.classes}`}
+            >
+              {badge.letter}
+            </span>
+          );
+        })}
+        <Link
+          href={`/plans/${planId}/substep/${ss.id}`}
+          onClick={(e) => e.stopPropagation()}
+          className="text-[10px] text-blue-500 hover:text-blue-700 shrink-0"
+        >
+          Analyze →
+        </Link>
 
         {/* Reorder + delete (on hover) */}
         <div className="flex items-center gap-0.5 opacity-0 group-hover/ss:opacity-100 transition-opacity shrink-0">
@@ -232,7 +288,7 @@ function SubgraphStepRow({
 // ── InputSubgraphBox ──────────────────────────────────────────────────────────
 
 function InputSubgraphBox({
-  input, subSteps, onDeleteInput, onAddSubStep, onDeleteSubStep, onMoveSubStep,
+  input, subSteps, onDeleteInput, onAddSubStep, onDeleteSubStep, onMoveSubStep, planId, hazardTypesBySubgraphStep,
 }: {
   input: StepInput;
   subSteps: SubgraphStep[];
@@ -240,6 +296,8 @@ function InputSubgraphBox({
   onAddSubStep: (name: string, category: string) => void;
   onDeleteSubStep: (subStepId: string) => void;
   onMoveSubStep: (subStepId: string, direction: "up" | "down") => void;
+  planId: string;
+  hazardTypesBySubgraphStep: Record<string, string[]>;
 }) {
   const [showStepForm, setShowStepForm] = useState(false);
   const [newStepName, setNewStepName] = useState("");
@@ -291,6 +349,8 @@ function InputSubgraphBox({
                 onDelete={() => onDeleteSubStep(ss.id)}
                 onMoveUp={() => onMoveSubStep(ss.id, "up")}
                 onMoveDown={() => onMoveSubStep(ss.id, "down")}
+                planId={planId}
+                hazardTypes={hazardTypesBySubgraphStep[ss.id] ?? []}
               />
             ))}
           </div>
@@ -355,6 +415,10 @@ export function FlowNode({
   onAddSubgraphStep, onDeleteSubgraphStep, onMoveSubgraphStep,
   outputs, hazardTypesByOutput,
   connectionsFromOutput, connectionsToStep,
+  onConnect, onDeleteConnection, onDeleteOutput,
+  hazardTypesBySubgraphStep,
+  outputSourcesByOutput, allProducingStepsByOutput, chartLetter, primaryOutputStepId,
+  onLinkOutputSource, onDeleteOutputSource,
 }: Props) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: step.id });
   const [showInputForm, setShowInputForm] = useState(false);
@@ -396,8 +460,55 @@ export function FlowNode({
       style={style}
       className={cn("flex items-center w-full group", isDragging && "z-50 opacity-90")}
     >
-      {/* ── Left zone: input subgraphs ────────────────────────────────── */}
+      {/* ── Left zone: input subgraphs + connected inputs ────────────── */}
       <div className="w-52 shrink-0 flex flex-col gap-2 pr-2 self-stretch justify-center">
+
+        {/* Connected inputs from step connections (Feature 2) */}
+        {connectionsToStep.map((conn) => {
+          const outType = conn.sourceOutputType ?? "other";
+          const cfg = OUTPUT_TYPE_CONFIG[outType] ?? OUTPUT_TYPE_CONFIG.other;
+          const isCross = conn.sourceFlowChartId !== activeFlowChartId;
+
+          // Build the full "from" text using allSourceSteps embedded in the connection
+          // (populated server-side with step numbers, falls back to sourceStepName only)
+          const sources = conn.allSourceSteps ?? [];
+          const fromText = sources.length > 0
+            ? "from " + sources
+                .filter((s) => s.stepNumber > 0 || s.stepName)
+                .map((s) => {
+                  const lbl = s.stepLabel ?? (s.stepNumber > 0 ? `${chartLetter}${s.stepNumber}` : null);
+                  return lbl ? `${lbl}: ${s.stepName}` : s.stepName;
+                })
+                .join(" and ")
+            : conn.sourceStepName
+              ? `from ${conn.sourceStepName}`
+              : "from unknown step";
+
+          return (
+            <div key={conn.id} className={`rounded-lg border-2 overflow-hidden shadow-sm ${cfg.border}`}>
+              <div className={`px-2 py-1 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${cfg.header}`}>
+                <span>{cfg.icon}</span>
+                <span className="truncate flex-1">{cfg.label}</span>
+                <span className={`text-[8px] font-semibold px-1 rounded shrink-0 ${
+                  conn.connectionType === "direct"
+                    ? "bg-blue-100 text-blue-700"
+                    : "bg-purple-100 text-purple-700"
+                }`}>
+                  {conn.connectionType === "direct" ? "direct" : "ref"}
+                </span>
+              </div>
+              <div className="bg-white px-2 py-1.5">
+                <p className="text-xs font-semibold text-neutral-700 leading-tight">
+                  {conn.sourceOutputName ?? "—"}
+                </p>
+                <p className="text-[10px] text-neutral-400 mt-0.5 leading-tight">
+                  {fromText}
+                  {isCross && conn.sourceFlowChartName ? ` (${conn.sourceFlowChartName})` : ""}
+                </p>
+              </div>
+            </div>
+          );
+        })}
 
         {groupedInputs.map((inp) => (
           <InputSubgraphBox
@@ -408,6 +519,8 @@ export function FlowNode({
             onAddSubStep={(name, cat) => onAddSubgraphStep(inp.id, name, cat)}
             onDeleteSubStep={(ssId) => onDeleteSubgraphStep(inp.id, ssId)}
             onMoveSubStep={(ssId, dir) => onMoveSubgraphStep(inp.id, ssId, dir)}
+            planId={planId}
+            hazardTypesBySubgraphStep={hazardTypesBySubgraphStep}
           />
         ))}
 
@@ -461,7 +574,7 @@ export function FlowNode({
 
       {/* ── Connector arrow ───────────────────────────────────────────── */}
       <div className="w-12 shrink-0 flex items-center justify-center self-stretch">
-        {inputs.length > 0 && (
+        {(inputs.length > 0 || connectionsToStep.length > 0) && (
           <svg width="48" height="14" viewBox="0 0 48 14" className="text-neutral-400">
             <line x1="0" y1="7" x2="36" y2="7" stroke="currentColor" strokeWidth="1.5" />
             <path d="M32 3 L44 7 L32 11" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
@@ -493,7 +606,7 @@ export function FlowNode({
             "w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0",
             step.isCcp ? "bg-red-600 text-white" : "bg-white/80 text-neutral-700 border border-neutral-200",
           )}>
-            {step.stepNumber}
+            {chartLetter}{step.sequence ?? step.stepNumber}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
@@ -520,11 +633,6 @@ export function FlowNode({
               )}
               {step.description && (
                 <span className="text-xs text-neutral-400 truncate hidden sm:inline">— {step.description}</span>
-              )}
-              {connectionsToStep.length > 0 && (
-                <span className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 font-medium shrink-0">
-                  ← {connectionsToStep.length} input{connectionsToStep.length > 1 ? "s" : ""} connected
-                </span>
               )}
             </div>
           </div>
@@ -590,59 +698,135 @@ export function FlowNode({
       <div className="w-52 shrink-0 flex flex-col gap-2 pl-2 self-stretch justify-center">
         {outputs.map((out) => {
           const cfg = OUTPUT_TYPE_CONFIG[out.outputType] ?? OUTPUT_TYPE_CONFIG.other;
+          // Is this step the primary owner of this output?
+          const isPrimaryOwner = out.stepId === primaryOutputStepId;
+          const isSharedCopy = !isPrimaryOwner;
+          const hasMultipleProducers = (allProducingStepsByOutput[out.id] ?? []).length > 1;
+
           return (
             <Link
               key={out.id}
-              href={`/plans/${planId}/steps/${step.id}/outputs/${out.id}`}
-              className={cn("rounded-lg border-2 overflow-hidden shadow-sm hover:shadow-md transition-shadow", cfg.border)}
+              href={`/plans/${planId}/steps/${out.stepId}/outputs/${out.id}`}
+              className={cn("rounded-lg border-2 overflow-hidden shadow-sm hover:shadow-md transition-shadow group/out", cfg.border)}
             >
               {/* Type header */}
               <div className={cn("px-2 py-1 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1", cfg.header)}>
                 <span>{cfg.icon}</span>
-                <span className="truncate">{cfg.label}</span>
+                <span className="truncate flex-1">{cfg.label}</span>
+                {hasMultipleProducers && (
+                  <span className="shrink-0 text-[8px] font-semibold px-1 rounded bg-violet-100 text-violet-700 border border-violet-200">
+                    {isSharedCopy ? "shared" : "shared"}
+                  </span>
+                )}
                 {out.isCcp && (
-                  <span className="ml-auto shrink-0 bg-red-600 text-white text-[9px] font-bold px-1 rounded">
+                  <span className="shrink-0 bg-red-600 text-white text-[9px] font-bold px-1 rounded">
                     {out.ccpNumber || "CCP"}
                   </span>
                 )}
+                {isPrimaryOwner && (
+                  <button
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDeleteOutput(out.id, out.name); }}
+                    className="shrink-0 opacity-0 group-hover/out:opacity-100 transition-opacity text-current hover:text-red-600"
+                    title="Delete output"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                )}
               </div>
-              {/* Output name + hazard type badges + connection indicator */}
+              {/* Output name + all producing steps + hazard badges + connections */}
               <div className="bg-white px-2 py-1.5">
-                <p className="text-xs font-semibold text-neutral-700 truncate leading-tight">{out.name}</p>
+                <p className="text-xs font-semibold text-neutral-700 leading-tight">{out.name}</p>
                 {out.description && (
                   <p className="text-[10px] text-neutral-400 truncate mt-0.5">{out.description}</p>
                 )}
+                {/* All producing steps — shown on both primary and shared copies */}
+                {(() => {
+                  const allProducers = allProducingStepsByOutput[out.id] ?? [];
+                  if (allProducers.length === 0) return null;
+                  return (
+                    <div className="mt-1 space-y-0.5">
+                      {allProducers.map((producer) => {
+                        const isSelf = producer.stepId === primaryOutputStepId;
+                        const isPrimary = producer.stepId === out.stepId;
+                        return (
+                          <div key={producer.stepId} className="flex items-center gap-1 group/prod">
+                            <span className={`shrink-0 text-[8px] ${isPrimary ? "text-teal-500" : "text-violet-500"}`}>
+                              {isPrimary ? "●" : "◎"}
+                            </span>
+                            <span className={`text-[9px] truncate flex-1 ${isSelf ? "font-semibold text-neutral-700" : "text-neutral-500"}`}>
+                              {producer.stepLabel}: {producer.stepName}
+                            </span>
+                            {isPrimaryOwner && !isPrimary && producer.sourceId && (
+                              <button
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDeleteOutputSource(producer.sourceId!, out.id, producer.stepId); }}
+                                className="shrink-0 opacity-0 group-hover/prod:opacity-100 text-neutral-300 hover:text-red-500 transition-all"
+                                title="Remove step as source"
+                              >
+                                <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
                 <HazardTypeBadges types={hazardTypesByOutput[out.id] || []} size="xs" />
                 {/* Outgoing connections */}
                 {(connectionsFromOutput[out.id] ?? []).map((conn) => {
                   const isCross = conn.targetFlowChartId !== activeFlowChartId;
                   return (
-                    <div key={conn.id} className="mt-1 flex items-center gap-1">
-                      <span className={`text-[9px] font-semibold px-1 rounded ${
+                    <div key={conn.id} className="mt-1 flex items-center gap-1 group/conn">
+                      <span className={`shrink-0 text-[9px] font-semibold px-1 rounded ${
                         conn.connectionType === "direct"
                           ? "bg-blue-100 text-blue-700"
                           : "bg-purple-100 text-purple-700"
                       }`}>
                         {conn.connectionType === "direct" ? "→" : "⤷"}
                       </span>
-                      <span className="text-[9px] text-neutral-600 truncate">
+                      <span className="text-[9px] text-neutral-600 truncate flex-1">
                         {conn.targetStepName}
                         {isCross && conn.targetFlowChartName ? ` (${conn.targetFlowChartName})` : ""}
                       </span>
+                      <button
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDeleteConnection(conn.id); }}
+                        className="shrink-0 opacity-0 group-hover/conn:opacity-100 text-neutral-300 hover:text-red-500 transition-all"
+                        title="Remove connection"
+                      >
+                        <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
                     </div>
                   );
                 })}
-                {/* Connect button */}
-                <a
-                  href={`/plans/${planId}/steps/${step.id}/outputs/${out.id}?connect=1`}
-                  onClick={(e) => e.stopPropagation()}
-                  className="mt-1 inline-flex items-center gap-0.5 text-[9px] text-neutral-400 hover:text-blue-600 transition-colors"
-                >
-                  <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                  </svg>
-                  Connect
-                </a>
+                {/* Action buttons */}
+                <div className="mt-1 flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onConnect(out.id, step.id); }}
+                    className="inline-flex items-center gap-0.5 text-[9px] text-neutral-400 hover:text-blue-600 transition-colors"
+                  >
+                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                    </svg>
+                    Connect
+                  </button>
+                  {isPrimaryOwner && (
+                    <button
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); onLinkOutputSource(out.id); }}
+                      className="inline-flex items-center gap-0.5 text-[9px] text-neutral-400 hover:text-violet-600 transition-colors"
+                    >
+                      <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v12m6-6H6" />
+                      </svg>
+                      + Source
+                    </button>
+                  )}
+                </div>
               </div>
             </Link>
           );

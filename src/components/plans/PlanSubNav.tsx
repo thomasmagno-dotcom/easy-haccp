@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 const TABS = [
   { href: "process-flow", label: "Process Flow" },
   { href: "ingredients", label: "Ingredients" },
+  { href: "hazard-summary", label: "Hazard Summary" },
   { href: "ccp-summary", label: "CCP Summary" },
   { href: "documents", label: "Documents" },
   { href: "versions", label: "Versions" },

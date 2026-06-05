@@ -255,6 +255,76 @@ export const HAZARD_SEEDS: HazardSeed[] = [
     sourceCategory: "supplier",
     applicableStepCategories: ["receiving", "storage"],
   },
+  {
+    name: "Shigella spp.",
+    type: "biological",
+    description:
+      "Gram-negative enteric pathogen causing shigellosis (bacillary dysentery): bloody diarrhea, fever, and cramps. Very low infectious dose (<10 cells). Transmitted via infected food handlers, contaminated water, and raw produce irrigated with polluted water. Controlled by strict personal hygiene GMPs and potable water standards.",
+    severity: "4",
+    likelihood: "2",
+    sourceCategory: "personnel",
+    applicableStepCategories: ["receiving", "processing", "packaging"],
+  },
+  {
+    name: "Non-O157 Shiga toxin-producing E. coli (STEC)",
+    type: "biological",
+    description:
+      "Serotypes other than O157:H7 (e.g., O26, O111, O103, O145, O121) that produce Shiga toxins and cause hemorrhagic colitis and hemolytic uremic syndrome (HUS). Associated with the same commodity sources as O157. Regulatory zero-tolerance applies in Canada and USA for the six major non-O157 serogroups in beef trimmings.",
+    severity: "4",
+    likelihood: "2",
+    sourceCategory: "soil",
+    applicableStepCategories: ["receiving", "processing"],
+  },
+  {
+    name: "Aeromonas hydrophila",
+    type: "biological",
+    description:
+      "Gram-negative pathogen found in fresh water, fish, shellfish, and raw produce. Grows at refrigeration temperatures. Produces cytotoxic enterotoxins causing gastroenteritis, wound infections, and septicemia in immunocompromised individuals. Controlled by temperature management and potable water use.",
+    severity: "3",
+    likelihood: "2",
+    sourceCategory: "water",
+    applicableStepCategories: ["receiving", "processing", "storage"],
+  },
+  {
+    name: "Hepatitis E virus (HEV)",
+    type: "biological",
+    description:
+      "Enteric virus transmitted primarily through raw or undercooked pork liver and products (pâté, sausages), wild boar, and deer. Increasingly recognised in industrialised countries. Causes acute hepatitis; potentially severe and fatal in pregnant women. Heat-inactivated at ≥71°C core temperature.",
+    severity: "4",
+    likelihood: "2",
+    sourceCategory: "supplier",
+    applicableStepCategories: ["receiving", "processing"],
+  },
+  {
+    name: "Rotavirus",
+    type: "biological",
+    description:
+      "Leading cause of severe diarrheal disease in infants and young children worldwide. Foodborne transmission via contaminated water, raw produce, and infected food handlers. Environmentally stable; resistant to many disinfectants. Controlled by personal hygiene, potable water, and SSOP programme.",
+    severity: "3",
+    likelihood: "2",
+    sourceCategory: "personnel",
+    applicableStepCategories: ["processing", "packaging"],
+  },
+  {
+    name: "Taenia solium (pork tapeworm) / Taenia saginata (beef tapeworm)",
+    type: "biological",
+    description:
+      "Cestode parasites transmitted through raw or undercooked pork (T. solium) and beef (T. saginata). T. solium is especially hazardous — ingestion of eggs (from faecally contaminated food/water) causes neurocysticercosis, a leading cause of adult-onset epilepsy in endemic regions. Destroyed by adequate cooking or validated freezing protocols.",
+    severity: "4",
+    likelihood: "1",
+    sourceCategory: "supplier",
+    applicableStepCategories: ["receiving", "processing"],
+  },
+  {
+    name: "Giardia lamblia",
+    type: "biological",
+    description:
+      "Protozoan parasite found in contaminated surface water and on fresh produce irrigated with untreated water. Causes giardiasis: prolonged diarrhea, bloating, malabsorption. Cysts are resistant to standard chlorination concentrations. Controlled by UV treatment, filtration, and produce washing with potable water.",
+    severity: "2",
+    likelihood: "1",
+    sourceCategory: "water",
+    applicableStepCategories: ["receiving", "processing"],
+  },
 
   // ══════════════════════════════════════════════════════════════
   // CHEMICAL HAZARDS
@@ -480,6 +550,134 @@ export const HAZARD_SEEDS: HazardSeed[] = [
     applicableStepCategories: ["receiving"],
   },
 
+  // ─── Additional mycotoxins ────────────────────────────────────
+  {
+    name: "Fumonisins B1 and B2",
+    type: "chemical",
+    description:
+      "Mycotoxins produced by Fusarium verticillioides and F. proliferatum in maize and corn-based products (flour, meal, masa, tortillas, corn snacks). Classified as possible human carcinogens (IARC Group 2B); associated with oesophageal cancer and neural tube defects. Controlled by visual inspection at receiving, moisture testing, and raw material COA.",
+    severity: "3",
+    likelihood: "2",
+    sourceCategory: "supplier",
+    applicableStepCategories: ["receiving", "storage"],
+  },
+  {
+    name: "T-2 and HT-2 toxins",
+    type: "chemical",
+    description:
+      "Type A trichothecene mycotoxins produced by Fusarium sporotrichioides and F. langsethiae in oats, barley, wheat, and maize in cold, wet climates. Among the most acutely toxic trichothecenes — inhibit protein synthesis, cause alimentary toxic aleukia (ATA) at high doses, and are immunosuppressive. Controlled by raw material specification and COA review.",
+    severity: "4",
+    likelihood: "1",
+    sourceCategory: "supplier",
+    applicableStepCategories: ["receiving", "storage"],
+  },
+  {
+    name: "Ergot alkaloids",
+    type: "chemical",
+    description:
+      "Alkaloids produced by Claviceps purpurea fungus infecting rye, wheat, barley, and other grasses. Sclerotia ('ergots') contaminate grain during harvest. Cause vasoconstriction, hallucinations, convulsions, and gangrene (ergotism) at high exposure. Controlled by visual inspection at receiving (ergot bodies visible), sieving, and supplier specification.",
+    severity: "3",
+    likelihood: "1",
+    sourceCategory: "supplier",
+    applicableStepCategories: ["receiving", "processing"],
+  },
+
+  // ─── Process-generated toxicants ─────────────────────────────
+  {
+    name: "Polycyclic aromatic hydrocarbons (PAHs)",
+    type: "chemical",
+    description:
+      "Probable and possible carcinogens (IARC Groups 2A/2B) formed by incomplete combustion during smoking, grilling, charring, and drying of food. Benzo[a]pyrene is the regulatory marker. Found in smoked fish and meat, grilled foods, roasted coffee, and smoked spices. Controlled by optimising smoking time/temperature, indirect smoking techniques, and trimming charred surfaces.",
+    severity: "3",
+    likelihood: "2",
+    sourceCategory: "environment",
+    applicableStepCategories: ["processing"],
+  },
+  {
+    name: "Heterocyclic amines (HCAs)",
+    type: "chemical",
+    description:
+      "Mutagenic compounds formed when amino acids and creatinine react at high temperatures (>150°C) during frying, grilling, and broiling of meat, poultry, and fish. Implicated in colorectal, breast, and prostate cancers with long-term exposure. Controlled by reducing cooking temperatures, marinating, and avoiding charring of meat surfaces.",
+    severity: "3",
+    likelihood: "2",
+    sourceCategory: "environment",
+    applicableStepCategories: ["processing"],
+  },
+  {
+    name: "Furans",
+    type: "chemical",
+    description:
+      "Possible carcinogens (IARC Group 2B) formed from sugars, amino acids, and ascorbic acid during heat treatment of liquid and semi-liquid foods (canned/jarred foods, roasted coffee, baby food pouches). Partially volatilised on opening. Controlled by optimising retort temperature/time and monitoring COA/product testing for high-risk product categories.",
+    severity: "3",
+    likelihood: "2",
+    sourceCategory: "environment",
+    applicableStepCategories: ["processing"],
+  },
+  {
+    name: "Nitrosamines (N-nitroso compounds)",
+    type: "chemical",
+    description:
+      "Carcinogenic compounds (IARC Group 1/2A) formed in cured and grilled meat products from the reaction of secondary amines with nitrite, particularly at high temperatures. Risk elevated when nitrite-cured products are fried, grilled, or stored with amines. Controlled by minimising nitrite levels, using ascorbate/erythorbate as nitrite scavengers, and avoiding high-temperature cooking of cured products.",
+    severity: "4",
+    likelihood: "2",
+    sourceCategory: "environment",
+    applicableStepCategories: ["processing"],
+  },
+  {
+    name: "Biogenic amines (tyramine, putrescine, cadaverine)",
+    type: "chemical",
+    description:
+      "Biogenic amines other than histamine (e.g., tyramine, putrescine, cadaverine, phenylethylamine) formed by microbial decarboxylation of amino acids in fermented, aged, and temperature-abused protein-rich foods (cheese, fermented sausages, wine, fish). High tyramine levels interact with MAO-inhibitor drugs, causing hypertensive crisis ('cheese effect'). Controlled by temperature management, starter culture control, and monitoring fermentation parameters.",
+    severity: "3",
+    likelihood: "2",
+    sourceCategory: "environment",
+    applicableStepCategories: ["processing", "storage"],
+  },
+
+  // ─── Heavy metals / inorganic ─────────────────────────────────
+  {
+    name: "Inorganic arsenic",
+    type: "chemical",
+    description:
+      "Inorganic arsenic — the more toxic form — found in rice and rice-based products (particularly infant rice cereal), groundwater used for irrigation, seaweed, and seafood. IARC Group 1 carcinogen linked to skin, lung, and bladder cancers. Organic arsenobetaine in marine animals is much less toxic. Controlled by raw material and water testing, and using low-arsenic rice varieties and irrigation sources.",
+    severity: "3",
+    likelihood: "2",
+    sourceCategory: "soil",
+    applicableStepCategories: ["receiving"],
+  },
+  {
+    name: "Tin (Sn) — from canned foods",
+    type: "chemical",
+    description:
+      "Inorganic tin can leach from unlacquered tinplate cans, damaged lacquered cans, or improperly stored opened cans into acidic food products (fruit juices, tomatoes, pineapple). Acute gastrointestinal effects (nausea, vomiting) at elevated levels. Controlled by using fully lacquered or alternative packaging, FIFO rotation, and not storing product in opened tinplate cans.",
+    severity: "2",
+    likelihood: "2",
+    sourceCategory: "equipment",
+    applicableStepCategories: ["packaging", "storage"],
+  },
+
+  // ─── Emerging / packaging-related ────────────────────────────
+  {
+    name: "PFAS (per- and polyfluoroalkyl substances)",
+    type: "chemical",
+    description:
+      "Persistent 'forever chemicals' used in food-contact packaging (grease-resistant paper, microwave popcorn bags, non-stick coatings) and food-processing equipment. Migrate into fatty and moist foods. Associated with thyroid disruption, immune suppression, and cancer risk. Controlled by requesting food-contact material COA confirming PFAS-free status and regulatory compliance (FDA/Health Canada).",
+    severity: "3",
+    likelihood: "2",
+    sourceCategory: "equipment",
+    applicableStepCategories: ["packaging"],
+  },
+  {
+    name: "Mineral oil hydrocarbons (MOAH / MOSH)",
+    type: "chemical",
+    description:
+      "Mineral oil aromatic hydrocarbons (MOAH) and saturated hydrocarbons (MOSH) migrate into food from recycled cardboard packaging, printing inks, and mineral oil-based equipment lubricants. MOAH are genotoxic and carcinogenic. Dry foods (cereals, rice, pasta) in paper/cardboard packaging are most at risk. Controlled by using MOSH/MOAH barrier layers in packaging and food-grade inks.",
+    severity: "3",
+    likelihood: "2",
+    sourceCategory: "equipment",
+    applicableStepCategories: ["packaging"],
+  },
+
   // ══════════════════════════════════════════════════════════════
   // PHYSICAL HAZARDS
   // ══════════════════════════════════════════════════════════════
@@ -602,6 +800,46 @@ export const HAZARD_SEEDS: HazardSeed[] = [
     severity: "1",
     likelihood: "3",
     sourceCategory: "environment",
+    applicableStepCategories: ["receiving", "storage"],
+  },
+  {
+    name: "Hypodermic needles and syringe components",
+    type: "physical",
+    description:
+      "Broken veterinary hypodermic needles embedded in muscle tissue from livestock treatment, or deliberate product tampering. High penetration and laceration risk. Controlled by X-ray inspection of whole-muscle cuts (particularly pork loin/shoulder), supplier needle-break reporting programmes, and 'no-needle' injection protocols.",
+    severity: "4",
+    likelihood: "1",
+    sourceCategory: "supplier",
+    applicableStepCategories: ["receiving", "processing"],
+  },
+  {
+    name: "String, twine, and net fragments",
+    type: "physical",
+    description:
+      "Fragments of baling twine, synthetic netting, or packaging string introduced at receiving (from produce, grain, meat) or during processing. Choking and intestinal obstruction hazard. Controlled by removing all bundling materials at receiving, inspecting incoming palletised goods, and using coloured detectable twine.",
+    severity: "2",
+    likelihood: "2",
+    sourceCategory: "equipment",
+    applicableStepCategories: ["receiving", "processing"],
+  },
+  {
+    name: "Packaging staples and clips",
+    type: "physical",
+    description:
+      "Metal staples, U-clips, and fasteners from cardboard boxes, produce crates, and bag closures that contaminate product at receiving or during de-packaging. Laceration and choking hazard. Detected by inline metal detection; controlled by careful de-packaging procedures and pre-operational checks.",
+    severity: "3",
+    likelihood: "2",
+    sourceCategory: "equipment",
+    applicableStepCategories: ["receiving", "processing"],
+  },
+  {
+    name: "Ice crystals and freezer burn (temperature abuse indicator)",
+    type: "physical",
+    description:
+      "Large ice crystals in frozen products or freezer burn patches indicate temperature abuse or thaw-refreeze cycles during supply chain. While primarily a quality defect, they signal potential microbial hazard (temperature abuse) and are used as a receiving rejection criterion. Controlled by supplier cold-chain monitoring and receiving inspection SOPs.",
+    severity: "1",
+    likelihood: "3",
+    sourceCategory: "supplier",
     applicableStepCategories: ["receiving", "storage"],
   },
 
@@ -729,6 +967,36 @@ export const HAZARD_SEEDS: HazardSeed[] = [
     sourceCategory: "equipment",
     applicableStepCategories: ["receiving", "processing", "packaging"],
   },
+  {
+    name: "Allergen cross-contact — Molluscs",
+    type: "allergen",
+    description:
+      "Cross-contact with mollusc proteins (tropomyosin and arginine kinase from oysters, clams, mussels, scallops, squid, octopus, abalone, snails). Priority allergen in EU; increasingly recognised in Canada. Distinct from crustacean shellfish allergy, though some cross-reactivity occurs. Requires ingredient segregation, validated cleaning, and mandatory labelling.",
+    severity: "4",
+    likelihood: "1",
+    sourceCategory: "equipment",
+    applicableStepCategories: ["receiving", "processing", "packaging"],
+  },
+  {
+    name: "Allergen cross-contact — Celery",
+    type: "allergen",
+    description:
+      "Cross-contact with celery proteins (PR-10 and LTP proteins from celery stalks, leaves, root, and seeds). Priority allergen in EU. Cross-reactive with birch pollen (oral allergy syndrome) and mugwort. Present in soups, stocks, seasonings, spice blends, and condiments. Requires supplier ingredient review and label compliance.",
+    severity: "3",
+    likelihood: "1",
+    sourceCategory: "equipment",
+    applicableStepCategories: ["receiving", "processing", "packaging"],
+  },
+  {
+    name: "Allergen cross-contact — Gluten grains (rye, barley, oats)",
+    type: "allergen",
+    description:
+      "Cross-contact with gluten-containing grains beyond wheat: rye, barley, and oats (avenin). Relevant for coeliac disease management — all four grains contribute to gluten exposure above the 20 ppm threshold. Oats are specifically cross-contamination prone from shared farm equipment and milling. Requires dedicated 'gluten-free oats' sourcing and validated cleaning procedures.",
+    severity: "4",
+    likelihood: "2",
+    sourceCategory: "equipment",
+    applicableStepCategories: ["receiving", "processing", "packaging"],
+  },
 
   // ══════════════════════════════════════════════════════════════
   // RADIOLOGICAL HAZARDS
@@ -848,6 +1116,46 @@ export const HAZARD_SEEDS: HazardSeed[] = [
     likelihood: "1",
     sourceCategory: "personnel",
     applicableStepCategories: ["receiving", "processing", "packaging", "storage", "shipping"],
+  },
+  {
+    name: "Food fraud — Illegal synthetic colorants (Sudan dyes, Rhodamine B)",
+    type: "fraud",
+    description:
+      "Prohibited synthetic dyes added to red spices (chili powder, paprika, turmeric, curry blends), palm oil, fish products, and sauces to enhance or restore colour. Sudan I–IV and Rhodamine B are genotoxic and carcinogenic (IARC). Detected by HPLC/LC-MS analysis. Controlled by targeted raw material testing of high-risk commodities and supplier VACCP assessment.",
+    severity: "3",
+    likelihood: "2",
+    sourceCategory: "supplier",
+    applicableStepCategories: ["receiving"],
+  },
+  {
+    name: "Food fraud — Undeclared irradiation",
+    type: "fraud",
+    description:
+      "Ionising radiation applied to food (spices, dried herbs, fresh produce, poultry) to reduce microbial load without obtaining regulatory approval or labelling the product as irradiated. Unlabelled irradiated food is illegal in Canada and the EU. Detected by thermoluminescence (TL) and photo-stimulated luminescence (PSL) methods. Controlled by supplier documentation verification and targeted testing.",
+    severity: "2",
+    likelihood: "1",
+    sourceCategory: "supplier",
+    applicableStepCategories: ["receiving"],
+  },
+  {
+    name: "Food fraud — Re-dating / expired product relabelling",
+    type: "fraud",
+    description:
+      "Fraudulent extension of best-before or use-by dates on packaged foods, infant formula, dietary supplements, or dry ingredients to prevent waste or increase profit. Can result in microbiological hazards if pathogen load exceeds safe levels post-expiry. Controlled by incoming date verification, lot traceability audits, and supplier qualification.",
+    severity: "3",
+    likelihood: "2",
+    sourceCategory: "supplier",
+    applicableStepCategories: ["receiving"],
+  },
+  {
+    name: "Food fraud — Counterfeit or substandard food additives",
+    type: "fraud",
+    description:
+      "Use of non-food-grade, counterfeit, or substandard versions of permitted additives (preservatives, emulsifiers, colours, acidity regulators, enzymes) from unqualified suppliers. May contain impurities, toxic contaminants, or incorrect concentrations. Controlled by approved supplier list, COA verification, periodic third-party analysis, and audit of additive suppliers.",
+    severity: "3",
+    likelihood: "2",
+    sourceCategory: "supplier",
+    applicableStepCategories: ["receiving", "processing"],
   },
 ];
 

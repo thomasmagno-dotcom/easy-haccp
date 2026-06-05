@@ -51,6 +51,44 @@ export function StepOutputsSection({ planId, stepId, outputs: initialOutputs }: 
   const [newDescription, setNewDescription] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // Edit state
+  const [editTarget, setEditTarget] = useState<StepOutput | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editType, setEditType] = useState<OutputType>("primary_product");
+  const [editDescription, setEditDescription] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+
+  function openEdit(output: StepOutput) {
+    setEditTarget(output);
+    setEditName(output.name);
+    setEditType((output.outputType as OutputType) || "primary_product");
+    setEditDescription(output.description ?? "");
+  }
+
+  async function saveEdit() {
+    if (!editTarget || !editName.trim()) return;
+    setEditSaving(true);
+
+    const res = await fetch(`/api/plans/${planId}/step-outputs`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: editTarget.id,
+        name: editName.trim(),
+        outputType: editType,
+        description: editDescription.trim() || null,
+      }),
+    });
+
+    if (res.ok) {
+      const updated: StepOutput = await res.json();
+      setOutputs((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+      setEditTarget(null);
+    }
+
+    setEditSaving(false);
+  }
+
   async function addOutput() {
     if (!newName.trim()) return;
     setSaving(true);
@@ -124,6 +162,15 @@ export function StepOutputsSection({ planId, stepId, outputs: initialOutputs }: 
                   Analyze →
                 </Link>
                 <button
+                  onClick={() => openEdit(output)}
+                  className="text-neutral-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Edit output"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
+                <button
                   onClick={() => deleteOutput(output.id, output.name)}
                   className="text-neutral-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                   title="Delete output"
@@ -137,6 +184,55 @@ export function StepOutputsSection({ planId, stepId, outputs: initialOutputs }: 
           ))}
         </div>
       )}
+
+      {/* Edit Output Dialog */}
+      <Dialog open={editTarget !== null} onOpenChange={(open) => { if (!open) setEditTarget(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Output</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div>
+              <label className="text-xs font-medium text-neutral-700 block mb-1">Output Name *</label>
+              <Input
+                placeholder="e.g., Pasteurized Milk, Packaging Waste"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") saveEdit(); }}
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-neutral-700 block mb-1">Output Type *</label>
+              <Select value={editType} onValueChange={(v) => setEditType(v as OutputType)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {OUTPUT_TYPE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-neutral-700 block mb-1">Description</label>
+              <Textarea
+                placeholder="Optional description of this output..."
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                rows={2}
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="ghost" onClick={() => setEditTarget(null)}>Cancel</Button>
+              <Button onClick={saveEdit} disabled={editSaving || !editName.trim()}>
+                {editSaving ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>

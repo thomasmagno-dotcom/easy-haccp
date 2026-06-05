@@ -165,6 +165,8 @@ export const stepHazards = sqliteTable("step_hazards", {
   justification: text("justification"),
   severityOverride: text("severity_override"),
   likelihoodOverride: text("likelihood_override"),
+  severityWithControls: text("severity_with_controls"),
+  likelihoodWithControls: text("likelihood_with_controls"),
   // Decision tree answers (JSON): { q1, q2, q3, q4, result }
   decisionTreeAnswers: text("decision_tree_answers"),
   createdAt: text("created_at")
@@ -355,6 +357,31 @@ export const inputSubgraphSteps = sqliteTable("input_subgraph_steps", {
     .default(sql`(datetime('now'))`),
 });
 
+// ─── Input Subgraph Step Hazards ─────────────────────────────────────────────
+
+export const inputSubgraphStepHazards = sqliteTable("input_subgraph_step_hazards", {
+  id: text("id").primaryKey(),
+  subgraphStepId: text("subgraph_step_id").notNull().references(() => inputSubgraphSteps.id, { onDelete: "cascade" }),
+  hazardId: text("hazard_id").notNull().references(() => hazards.id),
+  isSignificant: integer("is_significant", { mode: "boolean" }).notNull().default(false),
+  justification: text("justification"),
+  severityOverride: text("severity_override"),
+  likelihoodOverride: text("likelihood_override"),
+  severityWithControls: text("severity_with_controls"),
+  likelihoodWithControls: text("likelihood_with_controls"),
+  decisionTreeAnswers: text("decision_tree_answers"),
+  createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+});
+
+export const inputSubgraphStepControlMeasures = sqliteTable("input_subgraph_step_control_measures", {
+  id: text("id").primaryKey(),
+  subgraphHazardId: text("subgraph_hazard_id").notNull().references(() => inputSubgraphStepHazards.id, { onDelete: "cascade" }),
+  description: text("description").notNull(),
+  type: text("type"),
+  prpMasterId: text("prp_master_id").references(() => prpMaster.id, { onDelete: "set null" }),
+  createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+});
+
 // ─── Plan Versions (Immutable Snapshots) ────────────────────────────────────
 
 export const planVersions = sqliteTable("plan_versions", {
@@ -372,6 +399,11 @@ export const planVersions = sqliteTable("plan_versions", {
   previousVersionId: text("previous_version_id"),
   // Auto-generated structured change log (JSON array of strings)
   changeLog: text("change_log"),
+  // Version lifecycle
+  status: text("status").notNull().default("active"), // draft | active | superseded | archived
+  effectiveDate: text("effective_date"),
+  clonedFromVersionId: text("cloned_from_version_id"),
+  isRestorable: integer("is_restorable", { mode: "boolean" }).notNull().default(true),
 });
 
 // ─── PRP Master Registry ─────────────────────────────────────────────────────
@@ -432,6 +464,26 @@ export const stepOutputs = sqliteTable("step_outputs", {
     .default(sql`(datetime('now'))`),
 });
 
+// ─── Step Output Sources (multiple steps → same output) ─────────────────────
+//
+// When multiple process steps produce the same physical output (e.g. multiple
+// wash steps all reclaim the same water stream) this junction links each
+// additional source step to the output.  The primary step is still tracked via
+// stepOutputs.stepId; every other contributing step gets a row here.
+
+export const stepOutputSources = sqliteTable("step_output_sources", {
+  id: text("id").primaryKey(),
+  outputId: text("output_id")
+    .notNull()
+    .references(() => stepOutputs.id, { onDelete: "cascade" }),
+  stepId: text("step_id")
+    .notNull()
+    .references(() => processSteps.id, { onDelete: "cascade" }),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
 // ─── Output-Hazard Junction ──────────────────────────────────────────────────
 
 export const outputHazards = sqliteTable("output_hazards", {
@@ -448,6 +500,8 @@ export const outputHazards = sqliteTable("output_hazards", {
   justification: text("justification"),
   severityOverride: text("severity_override"),
   likelihoodOverride: text("likelihood_override"),
+  severityWithControls: text("severity_with_controls"),
+  likelihoodWithControls: text("likelihood_with_controls"),
   decisionTreeAnswers: text("decision_tree_answers"), // JSON: { q1, q2, q3, q4, result }
   createdAt: text("created_at")
     .notNull()

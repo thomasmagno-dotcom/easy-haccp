@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { processSteps, flowChartSteps } from "@/lib/db/schema";
+import { processSteps, flowChartSteps, flowCharts } from "@/lib/db/schema";
 import { eq, asc } from "drizzle-orm";
 import { generateId } from "@/lib/utils";
 import { logAudit } from "@/lib/audit";
 import { getNextNumber } from "@/lib/logic/numbering";
-import { ensureDefaultFlowChart, ensureJunction } from "@/lib/logic/flow-chart";
+import { ensureDefaultFlowChart, migrateStepsToDefaultChart } from "@/lib/logic/flow-chart";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -20,11 +20,12 @@ function parseOverrides(json: string | null): { name?: string; description?: str
  */
 async function resolveFlowChart(planId: string, chartId?: string | null) {
   if (chartId) {
-    await ensureJunction(chartId, planId);
+    // Explicitly requested chart — return as-is, never auto-populate
     return chartId;
   }
+  // Default chart: create if needed AND migrate legacy processSteps into it
   const chart = await ensureDefaultFlowChart(planId);
-  await ensureJunction(chart.id, planId);
+  await migrateStepsToDefaultChart(chart.id, planId);
   return chart.id;
 }
 
@@ -65,6 +66,32 @@ export async function GET(
   const { planId } = await params;
   const { searchParams } = new URL(req.url);
   const chartId = searchParams.get("chartId");
+
+  // ?all=true — return all steps in plan with their flow chart memberships
+  // Used by the connection-creation dialog to populate the target step picker.
+  if (searchParams.get("all") === "true") {
+    const rows = await db
+      .select({
+        step: processSteps,
+        flowChartId: flowChartSteps.flowChartId,
+        flowChartName: flowCharts.name,
+        sequence: flowChartSteps.sequence,
+      })
+      .from(processSteps)
+      .leftJoin(flowChartSteps, eq(flowChartSteps.stepId, processSteps.id))
+      .leftJoin(flowCharts, eq(flowCharts.id, flowChartSteps.flowChartId))
+      .where(eq(processSteps.planId, planId))
+      .orderBy(asc(processSteps.stepNumber))
+      .all();
+    return NextResponse.json(
+      rows.map((r) => ({
+        ...r.step,
+        flowChartId: r.flowChartId ?? null,
+        flowChartName: r.flowChartName ?? null,
+        sequence: r.sequence ?? null,
+      })),
+    );
+  }
 
   const flowChartId = await resolveFlowChart(planId, chartId);
   const steps = await getStepsForChart(flowChartId);

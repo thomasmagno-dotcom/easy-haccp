@@ -149,6 +149,8 @@ export function OutputHazardIdentificationSection({
         justification: null,
         severityOverride: migrateOldLevel(hazard.severity),
         likelihoodOverride: migrateOldLevel(hazard.likelihood),
+        severityWithControls: null,
+        likelihoodWithControls: null,
         decisionTreeAnswers: null,
         createdAt: new Date().toISOString(),
         hazard,
@@ -188,6 +190,32 @@ export function OutputHazardIdentificationSection({
     if (res.ok) {
       onUpdate(assignments.map((a) =>
         a.id === id ? { ...a, likelihoodOverride: value, isSignificant: risk.isSignificant } : a,
+      ));
+    }
+  }
+
+  async function updateSeverityWithControls(id: string, value: string) {
+    const res = await fetch(`/api/plans/${planId}/output-hazard-analysis`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, severityWithControls: value || null }),
+    });
+    if (res.ok) {
+      onUpdate(assignments.map((a) =>
+        a.id === id ? { ...a, severityWithControls: value || null } : a,
+      ));
+    }
+  }
+
+  async function updateLikelihoodWithControls(id: string, value: string) {
+    const res = await fetch(`/api/plans/${planId}/output-hazard-analysis`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, likelihoodWithControls: value || null }),
+    });
+    if (res.ok) {
+      onUpdate(assignments.map((a) =>
+        a.id === id ? { ...a, likelihoodWithControls: value || null } : a,
       ));
     }
   }
@@ -257,18 +285,34 @@ export function OutputHazardIdentificationSection({
           <TableRow>
             <TableHead className="w-12">Type</TableHead>
             <TableHead>Hazard</TableHead>
-            <TableHead className="w-32">Severity</TableHead>
-            <TableHead className="w-32">Likelihood</TableHead>
-            <TableHead className="w-24 text-center">Risk Score</TableHead>
+            <TableHead colSpan={3} className="text-center text-red-700 bg-red-50 text-xs font-semibold border-x border-red-200">
+              Risk Without Controls
+            </TableHead>
+            <TableHead colSpan={3} className="text-center text-green-700 bg-green-50 text-xs font-semibold border-x border-green-200">
+              Risk With Controls
+            </TableHead>
             <TableHead className="w-24 text-center">Significant?</TableHead>
             <TableHead>Justification</TableHead>
+            <TableHead className="w-12"></TableHead>
+          </TableRow>
+          <TableRow className="text-xs">
+            <TableHead className="w-12"></TableHead>
+            <TableHead></TableHead>
+            <TableHead className="w-28 bg-red-50/50">Severity</TableHead>
+            <TableHead className="w-28 bg-red-50/50">Likelihood</TableHead>
+            <TableHead className="w-20 text-center bg-red-50/50">Risk</TableHead>
+            <TableHead className="w-28 bg-green-50/50">Severity</TableHead>
+            <TableHead className="w-28 bg-green-50/50">Likelihood</TableHead>
+            <TableHead className="w-20 text-center bg-green-50/50">Risk</TableHead>
+            <TableHead className="w-24 text-center"></TableHead>
+            <TableHead></TableHead>
             <TableHead className="w-12"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {assignments.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={8} className="text-center text-neutral-500 py-8">
+              <TableCell colSpan={11} className="text-center text-neutral-500 py-8">
                 No hazards assigned to this output. Add hazards below.
               </TableCell>
             </TableRow>
@@ -279,6 +323,9 @@ export function OutputHazardIdentificationSection({
               const risk = computeRiskScore(sev, lik);
               const isAutoSignificant = risk.isSignificant;
               const isOverridden = a.isSignificant !== isAutoSignificant;
+              const swc = migrateOldLevel(a.severityWithControls);
+              const lwc = migrateOldLevel(a.likelihoodWithControls);
+              const riskWithControls = computeRiskScore(swc, lwc);
 
               return (
                 <TableRow key={a.id}>
@@ -290,7 +337,8 @@ export function OutputHazardIdentificationSection({
                   <TableCell>
                     <div className="font-medium text-sm">{a.hazard.name}</div>
                   </TableCell>
-                  <TableCell>
+                  {/* Without controls */}
+                  <TableCell className="bg-red-50/30">
                     <Select value={sev || ""} onValueChange={(v) => v && updateSeverity(a.id, v)}>
                       <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select..." /></SelectTrigger>
                       <SelectContent>
@@ -305,7 +353,7 @@ export function OutputHazardIdentificationSection({
                       </SelectContent>
                     </Select>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="bg-red-50/30">
                     <Select value={lik || ""} onValueChange={(v) => v && updateLikelihood(a.id, v)}>
                       <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select..." /></SelectTrigger>
                       <SelectContent>
@@ -320,7 +368,7 @@ export function OutputHazardIdentificationSection({
                       </SelectContent>
                     </Select>
                   </TableCell>
-                  <TableCell className="text-center">
+                  <TableCell className="text-center bg-red-50/30">
                     {risk.score > 0 ? (
                       <Tooltip>
                         <TooltipTrigger>
@@ -331,6 +379,54 @@ export function OutputHazardIdentificationSection({
                         <TooltipContent>
                           <p className="font-semibold">{risk.label}</p>
                           <p className="text-xs text-neutral-400">S{risk.severity} × L{risk.likelihood} = {risk.score}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      <span className="text-neutral-300 text-xs">—</span>
+                    )}
+                  </TableCell>
+                  {/* With controls */}
+                  <TableCell className="bg-green-50/30">
+                    <Select value={swc || ""} onValueChange={(v) => updateSeverityWithControls(a.id, v ?? "")}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select..." /></SelectTrigger>
+                      <SelectContent>
+                        {SEVERITY_LEVELS.map((level) => (
+                          <SelectItem key={level.value} value={level.value}>
+                            <span className="flex items-center gap-1.5">
+                              <span className="font-semibold">{level.value}</span>
+                              <span>{level.label}</span>
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell className="bg-green-50/30">
+                    <Select value={lwc || ""} onValueChange={(v) => updateLikelihoodWithControls(a.id, v ?? "")}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select..." /></SelectTrigger>
+                      <SelectContent>
+                        {LIKELIHOOD_LEVELS.map((level) => (
+                          <SelectItem key={level.value} value={level.value}>
+                            <span className="flex items-center gap-1.5">
+                              <span className="font-semibold">{level.value}</span>
+                              <span>{level.label}</span>
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell className="text-center bg-green-50/30">
+                    {riskWithControls.score > 0 ? (
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold border ${RISK_COLORS[riskWithControls.category]}`}>
+                            {riskWithControls.score}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="font-semibold">{riskWithControls.label}</p>
+                          <p className="text-xs text-neutral-400">S{riskWithControls.severity} × L{riskWithControls.likelihood} = {riskWithControls.score}</p>
                         </TooltipContent>
                       </Tooltip>
                     ) : (

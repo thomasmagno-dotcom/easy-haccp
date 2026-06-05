@@ -7,7 +7,7 @@ import { logAudit } from "@/lib/audit";
 import { diffSnapshots } from "@/lib/diff-snapshots";
 import { buildCurrentSnapshot } from "@/lib/queries/build-snapshot";
 
-// GET all versions for a plan
+// GET all versions for a plan — metadata only (no snapshot body)
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ planId: string }> },
@@ -20,7 +20,6 @@ export async function GET(
     .orderBy(desc(planVersions.versionNumber))
     .all();
 
-  // Don't send full snapshots in the list — just metadata
   return NextResponse.json(
     versions.map((v) => ({
       id: v.id,
@@ -29,6 +28,10 @@ export async function GET(
       publishedBy: v.publishedBy,
       changeDescription: v.changeDescription,
       changeLog: v.changeLog ? JSON.parse(v.changeLog) : null,
+      status: v.status ?? "active",
+      effectiveDate: v.effectiveDate ?? null,
+      clonedFromVersionId: v.clonedFromVersionId ?? null,
+      isRestorable: v.isRestorable ?? true,
     })),
   );
 }
@@ -79,6 +82,14 @@ export async function POST(
     versionNumber,
   };
 
+  const now = new Date().toISOString();
+
+  // Mark the current active version as superseded before inserting the new one
+  await db.update(planVersions)
+    .set({ status: "superseded" })
+    .where(eq(planVersions.planId, planId))
+    .run();
+
   await db.insert(planVersions)
     .values({
       id: versionId,
@@ -88,6 +99,8 @@ export async function POST(
       publishedBy: publishedBy || null,
       changeDescription: changeDescription || null,
       changeLog: changeLogJson,
+      status: "active",
+      effectiveDate: now,
     })
     .run();
 
@@ -114,8 +127,10 @@ export async function POST(
     {
       id: versionId,
       versionNumber,
-      publishedAt: savedVersion?.publishedAt ?? new Date().toISOString(),
+      publishedAt: savedVersion?.publishedAt ?? now,
       changeLog: changeEntries,
+      status: "active",
+      effectiveDate: now,
     },
     { status: 201 },
   );

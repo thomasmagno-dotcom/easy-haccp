@@ -4,7 +4,11 @@ import {
   Text,
   View,
   StyleSheet,
+  Svg,
+  Line,
+  Polygon,
 } from "@react-pdf/renderer";
+import { PdfForms59 } from "./PdfForms59";
 
 const s = StyleSheet.create({
   page: { padding: 40, paddingBottom: 56, fontFamily: "Helvetica", fontSize: 9, color: "#1a1a1a" },
@@ -197,10 +201,30 @@ function PdfHazardTypeBadges({ types }: { types: string[] }) {
   );
 }
 
+const FLOW_CHART_TYPE_LABELS: Record<string, string> = {
+  main_process:        "Main Process",
+  byproduct:           "By-Product Stream",
+  incoming_ingredient: "Incoming Ingredient",
+  waste_stream:        "Waste Stream",
+  other:               "Other",
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
   const plan = snapshot.plan;
-  const steps = snapshot.processSteps || [];
+  // flowChartGroups is the current format; fall back to flat processSteps for old snapshots
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const flowChartGroups: any[] = snapshot.flowChartGroups ?? [
+    { id: "default", name: "Process Flow", flowChartType: "main_process", steps: snapshot.processSteps || [] },
+  ];
+  // Flat deduplicated step list for hazard analysis section
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const allSteps: any[] = snapshot.processSteps ||
+    flowChartGroups.flatMap((g: any) => g.steps);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const enrichedInputsByStepId: Record<string, any[]> = snapshot.enrichedInputsByStepId ?? {};
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const enrichedOutputsByStepId: Record<string, any[]> = snapshot.enrichedOutputsByStepId ?? {};
   const ingredientsList = snapshot.ingredients || [];
   const snapshotAt: string = snapshot.snapshotAt || new Date().toISOString();
   const publishedBy: string | null = snapshot.publishedBy ?? null;
@@ -404,136 +428,335 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
       </Page>
 
       {/* ── Form 3: Process Flow Diagram ────────────────────────────────────── */}
-      <Page size="LETTER" style={s.page}>
-        <Text style={s.h1}>Form 3: Process Flow Diagram</Text>
+      {flowChartGroups.map((group: any, gi: number) => {
+        const groupSteps: any[] = group.steps || [];
+        const chartTypeLabel = FLOW_CHART_TYPE_LABELS[group.flowChartType as string] ?? group.flowChartType;
 
-        {steps.map((step: Record<string, any>, i: number) => {
-          const isCcp = !!step.isCcp;
-          const stepType = (step.category as string) || "";
-          const stepHazardList = (step.hazards as any[]) || [];
-          const hazardCount = stepHazardList.length;
-          const stepHazardTypes = Array.from(new Set(stepHazardList.map((sh: any) => (sh.hazard as any)?.type as string).filter(Boolean)));
-          const stepInputsList = (step.inputs as any[]) || [];
-          const stepOutputsList = (step.outputs as any[]) || [];
+        // Column widths (LETTER = 532pt usable after 40pt padding each side)
+        const COL_SIDE = 108; // input / output column
+        const COL_ARROW = 18; // arrow zone
 
-          let bgColor = "#fefce8", borderColor = "#fde047";
-          let numBg = "#e5e7eb", numTextColor = "#1a1a1a";
-          if (isCcp) { bgColor = "#fee2e2"; borderColor = "#fca5a5"; numBg = "#dc2626"; numTextColor = "#ffffff"; }
-          else if (stepType === "receiving") { bgColor = "#dbeafe"; borderColor = "#93c5fd"; }
-          else if (stepType === "storage") { bgColor = "#cffafe"; borderColor = "#67e8f9"; }
+        const INPUT_TYPE_CFG: Record<string, { bg: string; text: string; border: string; label: string }> = {
+          water:    { bg: "#dbeafe", text: "#1d4ed8", border: "#93c5fd", label: "Water"    },
+          chemical: { bg: "#ffedd5", text: "#c2410c", border: "#fdba74", label: "Chemical" },
+          material: { bg: "#dcfce7", text: "#15803d", border: "#86efac", label: "Material" },
+          energy:   { bg: "#fef9c3", text: "#a16207", border: "#fde047", label: "Energy"   },
+          other:    { bg: "#f3f4f6", text: "#374151", border: "#d1d5db", label: "Other"    },
+        };
 
-          const INPUT_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-            water:    { bg: "#dbeafe", text: "#1d4ed8", border: "#93c5fd" },
-            chemical: { bg: "#ffedd5", text: "#c2410c", border: "#fdba74" },
-            material: { bg: "#dcfce7", text: "#15803d", border: "#86efac" },
-            energy:   { bg: "#fef9c3", text: "#a16207", border: "#fde047" },
-            other:    { bg: "#f3f4f6", text: "#374151", border: "#d1d5db" },
-          };
+        const STEP_BG: Record<string, { bg: string; border: string }> = {
+          receiving:  { bg: "#dbeafe", border: "#93c5fd" },
+          storage:    { bg: "#cffafe", border: "#67e8f9" },
+          processing: { bg: "#fefce8", border: "#fde047" },
+          packaging:  { bg: "#dcfce7", border: "#86efac" },
+          shipping:   { bg: "#f5f3ff", border: "#c4b5fd" },
+        };
 
-          return (
-            <View key={i}>
-              <View style={{ ...s.stepBox, backgroundColor: bgColor, borderColor }}>
-                <View style={s.stepBoxInner}>
-                  {/* Step number circle */}
-                  <View style={{ ...s.stepNum, backgroundColor: numBg }}>
-                    <Text style={{ ...s.stepNumText, color: numTextColor }}>{step.stepNumber as number}</Text>
-                  </View>
+        const chartLetter = String.fromCharCode(65 + gi);
 
-                  {/* Step content */}
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap" }}>
-                      <Text style={{ fontSize: 10, fontFamily: "Helvetica-Bold", marginRight: 4 }}>{step.name as string}</Text>
-                      {isCcp && <View style={{ ...s.badge, marginRight: 4 }}><Text>{step.ccpNumber as string}</Text></View>}
-                      {isCcp && <Text style={{ fontSize: 8, color: "#dc2626" }}>Critical Control Point</Text>}
-                    </View>
-                    {stepType !== "" && (
-                      <Text style={{ fontSize: 7, color: "#6b7280", marginTop: 1 }}>
-                        {stepType.charAt(0).toUpperCase() + stepType.slice(1)}
-                      </Text>
-                    )}
-                    {step.description && (
-                      <Text style={{ fontSize: 7, color: "#555", marginTop: 2 }}>
-                        {(step.description as string).length > 80 ? (step.description as string).substring(0, 80) + "…" : step.description as string}
-                      </Text>
-                    )}
+        return (
+          <Page key={gi} size="LETTER" style={s.page}>
+            <Text style={s.h1}>Form 3: Process Flow Diagram</Text>
 
-                    {/* Inputs row */}
-                    {stepInputsList.length > 0 && (
-                      <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 4, alignItems: "center" }}>
-                        <Text style={{ fontSize: 7, color: "#6b7280", marginRight: 3 }}>↓ Inputs:</Text>
-                        {stepInputsList.map((inp: any, k: number) => {
-                          const col = INPUT_COLORS[(inp.type as string) || "other"] || INPUT_COLORS.other;
+            {/* Chart header */}
+            <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#f8fafc", borderWidth: 1, borderColor: "#cbd5e1", borderRadius: 4, paddingHorizontal: 8, paddingVertical: 5, marginBottom: 8 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 10, fontFamily: "Helvetica-Bold", color: "#1e293b" }}>{group.name as string}</Text>
+                <Text style={{ fontSize: 7, color: "#64748b", marginTop: 1 }}>{chartTypeLabel}</Text>
+              </View>
+              <Text style={{ fontSize: 7, color: "#94a3b8" }}>
+                {groupSteps.length} step{groupSteps.length !== 1 ? "s" : ""}
+              </Text>
+            </View>
+
+            {groupSteps.length === 0 ? (
+              <Text style={{ fontSize: 8, color: "#9ca3af", fontStyle: "italic" }}>No steps in this flow chart.</Text>
+            ) : (
+              groupSteps.map((step: Record<string, any>, i: number) => {
+                const isCcp = !!step.isCcp;
+                const stepType = (step.category as string) || "";
+                const stepHazardList = (step.hazards as any[]) || [];
+                const hazardCount = stepHazardList.length;
+                const stepHazardTypes = Array.from(
+                  new Set(stepHazardList.map((sh: any) => (sh.hazard as any)?.type as string).filter(Boolean)),
+                );
+                const stepInputsList = (step.inputs as any[]) || [];
+                const stepOutputsList = (step.outputs as any[]) || [];
+                const connectedInputsList = (step.connectedInputs as any[]) || [];
+                const hasInputs = stepInputsList.length > 0 || connectedInputsList.length > 0;
+                const hasOutputs = stepOutputsList.length > 0;
+
+                const stepColors = isCcp
+                  ? { bg: "#fee2e2", border: "#fca5a5" }
+                  : STEP_BG[stepType] ?? { bg: "#fefce8", border: "#fde047" };
+                const numBg = isCcp ? "#dc2626" : "#e5e7eb";
+                const numTextColor = isCcp ? "#ffffff" : "#1a1a1a";
+
+                return (
+                  <View key={i}>
+                    {/* ── Three-column step row ── */}
+                    <View style={{ flexDirection: "row", alignItems: "stretch", minHeight: 40 }}>
+
+                      {/* LEFT: input column (manual inputs + connected inputs from step connections) */}
+                      <View style={{ width: COL_SIDE, justifyContent: "center" }}>
+                        {/* Connected inputs from step connections (Feature 2) */}
+                        {connectedInputsList.map((ci: any, k: number) => {
+                          const ciType = (ci.outputType as string) || "other";
+                          const ciCol = OUTPUT_COLORS[ciType] ?? OUTPUT_COLORS.other;
+                          const ciLabel = OUTPUT_TYPE_LABELS[ciType] ?? ciType;
+                          const totalItems = connectedInputsList.length + stepInputsList.length;
                           return (
-                            <View key={k} style={{ backgroundColor: col.bg, borderWidth: 1, borderColor: col.border, borderRadius: 3, paddingHorizontal: 4, paddingVertical: 1, marginRight: 3, marginBottom: 2 }}>
-                              <Text style={{ fontSize: 7, color: col.text, fontFamily: "Helvetica-Bold" }}>{inp.name as string}</Text>
+                            <View key={`ci-${k}`} style={{ borderWidth: 1, borderColor: ciCol.border, borderRadius: 3, marginBottom: k < totalItems - 1 ? 3 : 0, overflow: "hidden" }}>
+                              <View style={{ backgroundColor: ciCol.bg, paddingHorizontal: 4, paddingVertical: 2, flexDirection: "row", alignItems: "center" }}>
+                                <Text style={{ fontSize: 6.5, fontFamily: "Helvetica-Bold", color: ciCol.text, flex: 1, textTransform: "uppercase" }}>
+                                  {ciLabel}
+                                </Text>
+                                <Text style={{ fontSize: 5.5, color: "#7c3aed", fontFamily: "Helvetica-Bold" }}>
+                                  {ci.connectionType === "direct" ? "→" : "⤷"}
+                                </Text>
+                              </View>
+                              <View style={{ backgroundColor: "#ffffff", paddingHorizontal: 4, paddingVertical: 2 }}>
+                                <Text style={{ fontSize: 7.5, fontFamily: "Helvetica-Bold", color: "#1a1a1a" }}>{ci.outputName as string}</Text>
+                                {(() => {
+                                  const srcs: Array<{ stepName: string; stepNumber: number; stepLabel?: string }> = (ci.allSourceSteps as any[]) || [];
+                                  const fromText = srcs.length > 0
+                                    ? "from " + srcs.map((s) => `${s.stepLabel ?? s.stepNumber}: ${s.stepName}`).join(" and ")
+                                    : "";
+                                  return fromText ? (
+                                    <Text style={{ fontSize: 6, color: "#6b7280", marginTop: 1, lineHeight: 1.3 }}>{fromText}</Text>
+                                  ) : null;
+                                })()}
+                              </View>
+                            </View>
+                          );
+                        })}
+                        {/* Manual inputs */}
+                        {stepInputsList.map((inp: any, k: number) => {
+                          const cfg = INPUT_TYPE_CFG[(inp.type as string) || "other"] ?? INPUT_TYPE_CFG.other;
+                          const subSteps: any[] = inp.subgraphSteps || [];
+                          const totalItems = connectedInputsList.length + stepInputsList.length;
+                          const itemIndex = connectedInputsList.length + k;
+                          return (
+                            <View key={k} style={{ borderWidth: 1, borderColor: cfg.border, borderRadius: 3, marginBottom: itemIndex < totalItems - 1 ? 3 : 0, overflow: "hidden" }}>
+                              {/* Type header */}
+                              <View style={{ backgroundColor: cfg.bg, paddingHorizontal: 4, paddingVertical: 2 }}>
+                                <Text style={{ fontSize: 6.5, fontFamily: "Helvetica-Bold", color: cfg.text, textTransform: "uppercase" }}>
+                                  {cfg.label}
+                                </Text>
+                              </View>
+                              {/* Input name */}
+                              <View style={{ backgroundColor: "#ffffff", paddingHorizontal: 4, paddingVertical: 2 }}>
+                                <Text style={{ fontSize: 7.5, fontFamily: "Helvetica-Bold", color: "#1a1a1a" }}>{inp.name as string}</Text>
+                                {/* Sub-flow steps with hazard type badges */}
+                                {subSteps.length > 0 && (
+                                  <View style={{ marginTop: 2 }}>
+                                    {subSteps.map((ss: any, si: number) => {
+                                      const ssHazardTypes: string[] = (ss.hazardTypes as string[]) || [];
+                                      const orderedTypes = ["biological","chemical","physical","allergen","radiological","fraud"].filter((t) => ssHazardTypes.includes(t));
+                                      const BADGE_CFG: Record<string, { letter: string; bg: string; text: string }> = {
+                                        biological:   { letter: "B", bg: "#fee2e2", text: "#b91c1c" },
+                                        chemical:     { letter: "C", bg: "#ffedd5", text: "#c2410c" },
+                                        physical:     { letter: "P", bg: "#dbeafe", text: "#1d4ed8" },
+                                        allergen:     { letter: "A", bg: "#f5f3ff", text: "#7c3aed" },
+                                        radiological: { letter: "R", bg: "#fef9c3", text: "#a16207" },
+                                        fraud:        { letter: "F", bg: "#f3f4f6", text: "#374151" },
+                                      };
+                                      return (
+                                        <View key={si} style={{ flexDirection: "row", alignItems: "center", marginTop: 1 }}>
+                                          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: "#f3f4f6", borderWidth: 0.5, borderColor: "#d1d5db", justifyContent: "center", alignItems: "center", marginRight: 2 }}>
+                                            <Text style={{ fontSize: 5.5, fontFamily: "Helvetica-Bold", color: "#374151" }}>{si + 1}</Text>
+                                          </View>
+                                          <Text style={{ fontSize: 6, color: "#6b7280", flex: 1 }}>{ss.name as string}</Text>
+                                          {/* Hazard type badges */}
+                                          {orderedTypes.map((type) => {
+                                            const cfg = BADGE_CFG[type];
+                                            if (!cfg) return null;
+                                            return (
+                                              <View key={type} style={{ width: 9, height: 9, borderRadius: 2, backgroundColor: cfg.bg, justifyContent: "center", alignItems: "center", marginLeft: 1 }}>
+                                                <Text style={{ fontSize: 5, fontFamily: "Helvetica-Bold", color: cfg.text }}>{cfg.letter}</Text>
+                                              </View>
+                                            );
+                                          })}
+                                        </View>
+                                      );
+                                    })}
+                                  </View>
+                                )}
+                              </View>
                             </View>
                           );
                         })}
                       </View>
-                    )}
 
-                    {/* Outputs row */}
-                    {stepOutputsList.length > 0 && (
-                      <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 3, alignItems: "center" }}>
-                        <Text style={{ fontSize: 7, color: "#6b7280", marginRight: 3 }}>→ Outputs:</Text>
-                        {stepOutputsList.map((out: any, k: number) => {
-                          const outType = (out.outputType as string) || "other";
-                          const col = OUTPUT_COLORS[outType] || OUTPUT_COLORS.other;
-                          const label = OUTPUT_TYPE_LABELS[outType] || outType;
-                          const outHazardTypes: string[] = (out.hazardTypes as string[]) || [];
-                          return (
-                            <View key={k} style={{ backgroundColor: col.bg, borderWidth: 1, borderColor: col.border, borderRadius: 3, paddingHorizontal: 4, paddingVertical: 2, marginRight: 3, marginBottom: 2 }}>
-                              <Text style={{ fontSize: 7, color: col.text, fontFamily: "Helvetica-Bold" }}>
-                                {out.name as string}
-                                <Text style={{ fontFamily: "Helvetica", color: col.text }}> ({label})</Text>
-                                {out.isCcp ? " ⚠ CCP" : ""}
-                              </Text>
-                              {outHazardTypes.length > 0 && (
-                                <View style={{ marginTop: 2 }}>
-                                  <PdfHazardTypeBadges types={outHazardTypes} />
+                      {/* LEFT ARROW */}
+                      <View style={{ width: COL_ARROW, justifyContent: "center", alignItems: "center" }}>
+                        {hasInputs && (
+                          <Svg viewBox="0 0 18 10" width={18} height={10}>
+                            <Line x1="0" y1="5" x2="11" y2="5" stroke="#9ca3af" strokeWidth="1.5" />
+                            <Polygon points="9,2 16,5 9,8" fill="#9ca3af" />
+                          </Svg>
+                        )}
+                      </View>
+
+                      {/* CENTER: step box */}
+                      <View style={{ flex: 1, backgroundColor: stepColors.bg, borderWidth: 1.5, borderColor: stepColors.border, borderRadius: 5, padding: 7 }}>
+                        <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+                          {/* Step number */}
+                          <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: numBg, justifyContent: "center", alignItems: "center", marginRight: 6, flexShrink: 0 }}>
+                            <Text style={{ fontSize: 6.5, fontFamily: "Helvetica-Bold", color: numTextColor }}>{chartLetter}{i + 1}</Text>
+                          </View>
+                          {/* Step info */}
+                          <View style={{ flex: 1 }}>
+                            <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap" }}>
+                              <Text style={{ fontSize: 9, fontFamily: "Helvetica-Bold", color: "#111827", marginRight: 4 }}>{step.name as string}</Text>
+                              {isCcp && (
+                                <View style={{ backgroundColor: "#dc2626", borderRadius: 2, paddingHorizontal: 3, paddingVertical: 1, marginRight: 3 }}>
+                                  <Text style={{ fontSize: 6, fontFamily: "Helvetica-Bold", color: "#ffffff" }}>{step.ccpNumber as string}</Text>
                                 </View>
                               )}
+                              {isCcp && <Text style={{ fontSize: 7, color: "#dc2626" }}>CCP</Text>}
+                            </View>
+                            {stepType && (
+                              <Text style={{ fontSize: 6.5, color: "#6b7280", marginTop: 1 }}>
+                                {stepType.charAt(0).toUpperCase() + stepType.slice(1)}
+                              </Text>
+                            )}
+                            {step.description && (
+                              <Text style={{ fontSize: 6.5, color: "#555555", marginTop: 2, lineHeight: 1.3 }}>
+                                {(step.description as string).length > 100
+                                  ? (step.description as string).substring(0, 100) + "…"
+                                  : step.description as string}
+                              </Text>
+                            )}
+                          </View>
+                          {/* Hazard badge */}
+                          {hazardCount > 0 && (
+                            <View style={{ marginLeft: 4, flexShrink: 0, alignItems: "flex-end" }}>
+                              <View style={{ backgroundColor: "#f3f4f6", borderRadius: 6, paddingHorizontal: 4, paddingVertical: 1, marginBottom: 2 }}>
+                                <Text style={{ fontSize: 6.5, color: "#374151" }}>{hazardCount} hazard{hazardCount > 1 ? "s" : ""}</Text>
+                              </View>
+                              <PdfHazardTypeBadges types={stepHazardTypes} />
+                            </View>
+                          )}
+                        </View>
+                      </View>
+
+                      {/* RIGHT ARROW */}
+                      <View style={{ width: COL_ARROW, justifyContent: "center", alignItems: "center" }}>
+                        {hasOutputs && (
+                          <Svg viewBox="0 0 18 10" width={18} height={10}>
+                            <Line x1="0" y1="5" x2="11" y2="5" stroke="#9ca3af" strokeWidth="1.5" />
+                            <Polygon points="9,2 16,5 9,8" fill="#9ca3af" />
+                          </Svg>
+                        )}
+                      </View>
+
+                      {/* RIGHT: output column */}
+                      <View style={{ width: COL_SIDE, justifyContent: "center" }}>
+                        {stepOutputsList.map((out: any, k: number) => {
+                          const outType = (out.outputType as string) || "other";
+                          const col = OUTPUT_COLORS[outType] ?? OUTPUT_COLORS.other;
+                          const label = OUTPUT_TYPE_LABELS[outType] ?? outType;
+                          const outHazardTypes: string[] = (out.hazardTypes as string[]) || [];
+                          // Use the pre-computed allProducers from the route — this correctly
+                          // identifies the primary owner regardless of which step's column we're in.
+                          const allProducers: Array<{ stepId: string; stepLabel: string; stepName: string; isPrimary: boolean }> =
+                            (out.allProducers as any[]) ?? [];
+                          const isShared = allProducers.length > 1;
+                          return (
+                            <View key={k} style={{ borderWidth: 1, borderColor: col.border, borderRadius: 3, marginBottom: k < stepOutputsList.length - 1 ? 3 : 0, overflow: "hidden" }}>
+                              {/* Type header */}
+                              <View style={{ backgroundColor: col.bg, paddingHorizontal: 4, paddingVertical: 2, flexDirection: "row", alignItems: "center" }}>
+                                <Text style={{ fontSize: 6.5, fontFamily: "Helvetica-Bold", color: col.text, flex: 1, textTransform: "uppercase" }}>
+                                  {label}
+                                </Text>
+                                {isShared && (
+                                  <View style={{ backgroundColor: "#ede9fe", borderRadius: 2, paddingHorizontal: 2, marginRight: 2 }}>
+                                    <Text style={{ fontSize: 5.5, fontFamily: "Helvetica-Bold", color: "#7c3aed" }}>shared</Text>
+                                  </View>
+                                )}
+                                {out.isCcp && (
+                                  <View style={{ backgroundColor: "#dc2626", borderRadius: 2, paddingHorizontal: 2 }}>
+                                    <Text style={{ fontSize: 5.5, fontFamily: "Helvetica-Bold", color: "#ffffff" }}>{(out.ccpNumber as string) || "CCP"}</Text>
+                                  </View>
+                                )}
+                              </View>
+                              {/* Output name + all producing steps */}
+                              <View style={{ backgroundColor: "#ffffff", paddingHorizontal: 4, paddingVertical: 3 }}>
+                                <Text style={{ fontSize: 7.5, fontFamily: "Helvetica-Bold", color: "#1a1a1a" }}>{out.name as string}</Text>
+                                {out.description && (
+                                  <Text style={{ fontSize: 6, color: "#6b7280", marginTop: 1 }}>
+                                    {(out.description as string).length > 40
+                                      ? (out.description as string).substring(0, 40) + "…"
+                                      : out.description as string}
+                                  </Text>
+                                )}
+                                {/* All producing steps (always show when >1) */}
+                                {allProducers.length > 1 && allProducers.map((p, pi) => {
+                                  const isCurrent = p.stepId === step.id;
+                                  return (
+                                    <Text key={pi} style={{ fontSize: 5.5, color: p.isPrimary ? "#0f766e" : "#7c3aed", marginTop: 1, fontFamily: isCurrent ? "Helvetica-Bold" : "Helvetica" }}>
+                                      {p.isPrimary ? "●" : "◎"} {p.stepLabel}: {p.stepName}
+                                    </Text>
+                                  );
+                                })}
+                                {outHazardTypes.length > 0 && (
+                                  <View style={{ marginTop: 2 }}>
+                                    <PdfHazardTypeBadges types={outHazardTypes} />
+                                  </View>
+                                )}
+                              </View>
                             </View>
                           );
                         })}
                       </View>
+                    </View>
+
+                    {/* ── Vertical connector between steps — centered under step box ── */}
+                    {i < groupSteps.length - 1 && (
+                      <View style={{ flexDirection: "row", height: 14 }}>
+                        <View style={{ width: COL_SIDE + COL_ARROW }} />
+                        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+                          <View style={s.stepArrowLine} />
+                          <View style={s.stepArrowHead} />
+                        </View>
+                        <View style={{ width: COL_SIDE + COL_ARROW }} />
+                      </View>
                     )}
                   </View>
+                );
+              })
+            )}
 
-                  {hazardCount > 0 && (
-                    <View style={{ marginLeft: 6, flexShrink: 0, alignItems: "flex-end", gap: 3 }}>
-                      <View style={{ backgroundColor: "#f3f4f6", borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 }}>
-                        <Text style={{ fontSize: 7, color: "#374151" }}>{hazardCount} hazard{hazardCount > 1 ? "s" : ""}</Text>
-                      </View>
-                      <PdfHazardTypeBadges types={stepHazardTypes} />
-                    </View>
-                  )}
-                </View>
-              </View>
-
-              {i < steps.length - 1 && (
-                <View style={s.stepArrow}>
-                  <View style={s.stepArrowLine} />
-                  <View style={s.stepArrowHead} />
-                </View>
-              )}
-            </View>
-          );
-        })}
-        <PageFooter {...footerProps} />
-      </Page>
+            <PageFooter {...footerProps} />
+          </Page>
+        );
+      })}
 
       {/* ── Hazard Analysis per Step ─────────────────────────────────────────── */}
-      {steps.map((step: Record<string, any>, i: number) => {
+      {allSteps.map((step: Record<string, any>, i: number) => {
         const stepHazardList = (step.hazards as any[]) || [];
         if (stepHazardList.length === 0) return null;
 
         const significantHazards = stepHazardList.filter((sh: any) => sh.isSignificant);
+        // Find which chart this step belongs to (first match)
+        const parentChartIdx = flowChartGroups.findIndex((g: any) =>
+          (g.steps as any[]).some((s: any) => s.id === step.id),
+        );
+        const parentChart = parentChartIdx >= 0 ? flowChartGroups[parentChartIdx] : null;
+        const stepChartLetter = parentChartIdx >= 0 ? String.fromCharCode(65 + parentChartIdx) : "A";
+        const stepChartSeq = step.chartSequence ?? step.stepNumber;
+        const stepLabelStr = `${stepChartLetter}${stepChartSeq}`;
 
         return (
           <Page key={i} size="LETTER" style={s.page}>
+            {parentChart && flowChartGroups.length > 1 && (
+              <Text style={{ fontSize: 7, color: "#64748b", marginBottom: 4 }}>
+                Flow Chart: {parentChart.name as string} ({FLOW_CHART_TYPE_LABELS[parentChart.flowChartType as string] ?? parentChart.flowChartType})
+              </Text>
+            )}
             <Text style={s.h1}>
-              Step {step.stepNumber as number}: {step.name as string}
+              {stepLabelStr}: {step.name as string}
               {step.isCcp ? ` (${step.ccpNumber})` : ""}
             </Text>
             {step.description && <Text style={s.para}>{step.description as string}</Text>}
@@ -757,6 +980,252 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
           </Page>
         );
       })}
+
+      {/* ── Form 4B: Input Sub-Process Hazard Analysis ─────────────────────── */}
+      {(() => {
+        // Collect all subgraph steps that have hazard assignments across all steps
+        const subgraphPages: any[] = [];
+        for (const step of allSteps) {
+          const inputs: any[] = enrichedInputsByStepId[step.id] ?? [];
+          for (const inp of inputs) {
+            const subSteps: any[] = inp.subgraphSteps ?? [];
+            for (const ss of subSteps) {
+              const hazardList: any[] = ss.hazards ?? [];
+              if (hazardList.length === 0) continue;
+              subgraphPages.push({ step, input: inp, subStep: ss, hazards: hazardList });
+            }
+          }
+        }
+        if (subgraphPages.length === 0) return null;
+        return subgraphPages.map(({ step, input, subStep, hazards: subHazards }: any, pi: number) => (
+          <Page key={`sg-${pi}`} size="LETTER" style={s.page}>
+            <Text style={s.h1}>Form 4B: Input Sub-Process Hazard Analysis</Text>
+            <Text style={{ fontSize: 8, color: "#6b7280", marginBottom: 2 }}>
+              Process Step: {step.name as string}  ·  Input: {input.name as string}
+            </Text>
+            <Text style={s.h2}>{subStep.name as string}</Text>
+            <View style={s.table}>
+              <View style={s.tableHeaderRow}>
+                <Text style={{ ...s.th, width: 22 }}>Type</Text>
+                <Text style={{ ...s.th, width: 120 }}>Hazard</Text>
+                <Text style={{ ...s.th, width: 28 }}>Sev.</Text>
+                <Text style={{ ...s.th, width: 28 }}>Like.</Text>
+                <Text style={{ ...s.th, width: 28 }}>Risk</Text>
+                <Text style={{ ...s.th, width: 28 }}>Sig?</Text>
+                <Text style={{ ...s.th, width: 50 }}>DT Result</Text>
+                <Text style={{ ...s.th, flex: 1 }}>Justification</Text>
+              </View>
+              {subHazards.map((sh: any, ji: number) => {
+                const hazard = sh.hazard as Record<string, any>;
+                const sev = sh.severityOverride || hazard.severity || "";
+                const lik = sh.likelihoodOverride || hazard.likelihood || "";
+                const sevNum = parseInt(sev, 10);
+                const likNum = parseInt(lik, 10);
+                const score = !isNaN(sevNum) && !isNaN(likNum) ? sevNum * likNum : 0;
+                const dtRaw = sh.decisionTreeAnswers ? (() => { try { return JSON.parse(sh.decisionTreeAnswers); } catch { return null; } })() : null;
+                const dtResult = dtRaw?.result ?? null;
+                const DT_LABELS: Record<string, string> = { ccp:"CCP", not_ccp:"Not CCP", prp:"GHP/PRP", modify:"Modify" };
+                return (
+                  <View key={ji} style={{ ...s.tableRow, backgroundColor: sh.isSignificant ? "#fff7ed" : "transparent" }}>
+                    <Text style={{ ...s.td, width: 22 }}>{((hazard.type as string)||"").charAt(0).toUpperCase()}</Text>
+                    <Text style={{ ...s.td, width: 120, fontFamily: sh.isSignificant ? "Helvetica-Bold" : "Helvetica" }}>{hazard.name as string}</Text>
+                    <Text style={{ ...s.td, width: 28 }}>{sev || "—"}</Text>
+                    <Text style={{ ...s.td, width: 28 }}>{lik || "—"}</Text>
+                    <Text style={{ ...s.td, width: 28 }}>{score > 0 ? String(score) : "—"}</Text>
+                    <Text style={{ ...s.td, width: 28, color: sh.isSignificant ? "#c2410c" : "#374151" }}>
+                      {sh.isSignificant ? "⚠ Yes" : "No"}
+                    </Text>
+                    <Text style={{ ...s.td, width: 50 }}>{dtResult ? (DT_LABELS[dtResult] ?? dtResult) : "—"}</Text>
+                    <Text style={{ ...s.td, flex: 1 }}>{(sh.justification || "—") as string}</Text>
+                  </View>
+                );
+              })}
+            </View>
+            {/* Control measures for this subgraph step */}
+            {subHazards.some((sh: any) => ((sh.controlMeasures as any[]) || []).length > 0) && (
+              <>
+                <Text style={s.h3}>Control Measures</Text>
+                {subHazards.filter((sh: any) => ((sh.controlMeasures as any[]) || []).length > 0).map((sh: any, ci: number) => (
+                  <View key={ci} style={{ marginBottom: 4 }}>
+                    <Text style={{ fontSize: 7.5, fontFamily: "Helvetica-Bold", color: "#374151", marginBottom: 2 }}>
+                      {(sh.hazard as any).name as string}
+                    </Text>
+                    {((sh.controlMeasures as any[]) || []).map((cm: any, k: number) => (
+                      <View key={k} style={{ flexDirection: "row", marginBottom: 2, paddingLeft: 8 }}>
+                        <View style={{ backgroundColor: "#e0f2fe", borderRadius: 2, paddingHorizontal: 4, paddingVertical: 1, marginRight: 6, flexShrink: 0 }}>
+                          <Text style={{ fontSize: 7, fontFamily: "Helvetica-Bold", color: "#0369a1" }}>
+                            {((cm.type as string) || "preventive")}
+                          </Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 7.5, color: "#111827" }}>{cm.description as string}</Text>
+                          {cm.prpName && (
+                            <Text style={{ fontSize: 7, color: "#0f766e" }}>
+                              {cm.prpFsepCode ? `${cm.prpFsepCode} — ` : ""}{cm.prpName as string}
+                            </Text>
+                          )}
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                ))}
+              </>
+            )}
+            <PageFooter {...footerProps} />
+          </Page>
+        ));
+      })()}
+
+      {/* ── Form 4C: Output Hazard Analysis ─────────────────────────────────── */}
+      {allSteps.map((step: any, si: number) => {
+        const outputs: any[] = enrichedOutputsByStepId[step.id] ?? [];
+        const outputsWithHazards = outputs.filter((o: any) => ((o.hazards as any[]) || []).length > 0);
+        if (outputsWithHazards.length === 0) return null;
+        const outChartIdx = flowChartGroups.findIndex((g: any) => (g.steps as any[]).some((s: any) => s.id === step.id));
+        const outStepLabel = `${String.fromCharCode(65 + Math.max(0, outChartIdx))}${step.chartSequence ?? step.stepNumber}`;
+        return (
+          <Page key={`oc-${si}`} size="LETTER" style={s.page}>
+            <Text style={s.h1}>Form 4C: Output Hazard Analysis</Text>
+            <Text style={s.h2}>{outStepLabel}: {step.name as string}</Text>
+            {outputsWithHazards.map((out: any, oi: number) => {
+              const outHazards: any[] = out.hazards ?? [];
+              return (
+                <View key={oi} style={{ marginBottom: 12 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#f0fdfa", borderWidth: 1, borderColor: "#99f6e4", borderRadius: 3, paddingHorizontal: 6, paddingVertical: 3, marginBottom: 4 }}>
+                    <Text style={{ fontSize: 8, fontFamily: "Helvetica-Bold", flex: 1 }}>{out.name as string}</Text>
+                    <Text style={{ fontSize: 7, color: "#6b7280" }}>{(out.outputType as string).replace(/_/g," ")}</Text>
+                    {out.isCcp && <Text style={{ fontSize: 7, fontFamily: "Helvetica-Bold", color: "#dc2626", marginLeft: 6 }}>{out.ccpNumber || "CCP"}</Text>}
+                  </View>
+                  <View style={s.table}>
+                    <View style={s.tableHeaderRow}>
+                      <Text style={{ ...s.th, width: 22 }}>Type</Text>
+                      <Text style={{ ...s.th, width: 120 }}>Hazard</Text>
+                      <Text style={{ ...s.th, width: 28 }}>Sev.</Text>
+                      <Text style={{ ...s.th, width: 28 }}>Like.</Text>
+                      <Text style={{ ...s.th, width: 28 }}>Risk</Text>
+                      <Text style={{ ...s.th, width: 28 }}>Sig?</Text>
+                      <Text style={{ ...s.th, flex: 1 }}>Justification</Text>
+                    </View>
+                    {outHazards.map((oh: any, ji: number) => {
+                      const hazard = oh.hazard as Record<string, any>;
+                      const sev = oh.severityOverride || hazard.severity || "";
+                      const lik = oh.likelihoodOverride || hazard.likelihood || "";
+                      const sevNum = parseInt(sev, 10);
+                      const likNum = parseInt(lik, 10);
+                      const score = !isNaN(sevNum) && !isNaN(likNum) ? sevNum * likNum : 0;
+                      return (
+                        <View key={ji} style={{ ...s.tableRow, backgroundColor: oh.isSignificant ? "#fff7ed" : "transparent" }}>
+                          <Text style={{ ...s.td, width: 22 }}>{((hazard.type as string)||"").charAt(0).toUpperCase()}</Text>
+                          <Text style={{ ...s.td, width: 120, fontFamily: oh.isSignificant ? "Helvetica-Bold" : "Helvetica" }}>{hazard.name as string}</Text>
+                          <Text style={{ ...s.td, width: 28 }}>{sev||"—"}</Text>
+                          <Text style={{ ...s.td, width: 28 }}>{lik||"—"}</Text>
+                          <Text style={{ ...s.td, width: 28 }}>{score > 0 ? String(score) : "—"}</Text>
+                          <Text style={{ ...s.td, width: 28, color: oh.isSignificant ? "#c2410c" : "#374151" }}>{oh.isSignificant ? "⚠ Yes" : "No"}</Text>
+                          <Text style={{ ...s.td, flex: 1 }}>{(oh.justification || "—") as string}</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </View>
+              );
+            })}
+            <PageFooter {...footerProps} />
+          </Page>
+        );
+      })}
+
+      {/* ── Form 5: HACCP Plan Summary (all CCPs from all sources) ──────────── */}
+      {(() => {
+        // Collect all CCPs: process steps + outputs
+        const ccpRows: any[] = [];
+        for (const step of allSteps) {
+          if (step.isCcp && step.ccp) {
+            const ccpChartIdx = flowChartGroups.findIndex((g: any) =>
+              (g.steps as any[]).some((s: any) => s.id === step.id),
+            );
+            const ccpLabel = `${String.fromCharCode(65 + Math.max(0, ccpChartIdx))}${step.chartSequence ?? step.stepNumber}`;
+            ccpRows.push({ source: `${ccpLabel}: ${step.name}`, sourceType: "step", ccp: step.ccp });
+          }
+          const outputs: any[] = enrichedOutputsByStepId[step.id] ?? [];
+          for (const out of outputs) {
+            if (out.isCcp && out.ccp) {
+              const ccpChartIdx2 = flowChartGroups.findIndex((g: any) =>
+                (g.steps as any[]).some((s: any) => s.id === step.id),
+              );
+              const ccpLabel2 = `${String.fromCharCode(65 + Math.max(0, ccpChartIdx2))}${step.chartSequence ?? step.stepNumber}`;
+              ccpRows.push({ source: `Output: ${out.name} (${ccpLabel2})`, sourceType: "output", ccp: out.ccp });
+            }
+          }
+        }
+        if (ccpRows.length === 0) return null;
+        return (
+          <Page size="LETTER" style={s.page}>
+            <Text style={s.h1}>Form 5: HACCP Plan — Control Table</Text>
+            <Text style={{ ...s.para, fontSize: 8, color: "#6b7280", marginBottom: 8 }}>
+              Summary of all Critical Control Points, critical limits, monitoring, corrective actions, and verification procedures.
+            </Text>
+            {ccpRows.map(({ source, ccp }: any, ci: number) => {
+              const limits: any[] = ccp.criticalLimits ?? [];
+              const monitoring: any[] = ccp.monitoringProcedures ?? [];
+              const corrective: any[] = ccp.correctiveActions ?? [];
+              const verification: any[] = ccp.verificationProcedures ?? [];
+              return (
+                <View key={ci} style={{ marginBottom: 14, borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 4 }}>
+                  <View style={{ backgroundColor: "#fee2e2", paddingHorizontal: 8, paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: "#fca5a5" }}>
+                    <Text style={{ fontSize: 9, fontFamily: "Helvetica-Bold", color: "#991b1b" }}>{source as string}</Text>
+                    <Text style={{ fontSize: 7, color: "#7f1d1d" }}>{ccp.hazardDescription as string}</Text>
+                  </View>
+                  <View style={{ paddingHorizontal: 8, paddingVertical: 4 }}>
+                    <View style={s.fieldRow}><Text style={s.fieldLabel}>Control Measure:</Text><Text style={s.fieldValue}>{ccp.controlMeasureDescription as string}</Text></View>
+                    {limits.length > 0 && (
+                      <View style={s.fieldRow}>
+                        <Text style={s.fieldLabel}>Critical Limits:</Text>
+                        <Text style={s.fieldValue}>{limits.map((l: any) => `${l.parameter as string}: ${[l.minimum&&`Min ${l.minimum}`,l.maximum&&`Max ${l.maximum}`,l.target&&`Target ${l.target}`].filter(Boolean).join(", ")} ${l.unit||""}`).join(" | ")}</Text>
+                      </View>
+                    )}
+                    {monitoring.length > 0 && (
+                      <View style={s.fieldRow}>
+                        <Text style={s.fieldLabel}>Monitoring:</Text>
+                        <Text style={s.fieldValue}>{monitoring.map((m: any) => `${m.what as string} — ${m.how as string} (${m.frequency as string}, ${m.who as string})`).join("; ")}</Text>
+                      </View>
+                    )}
+                    {corrective.length > 0 && (
+                      <View style={s.fieldRow}>
+                        <Text style={s.fieldLabel}>Corrective Action:</Text>
+                        <Text style={s.fieldValue}>{corrective.map((c: any) => c.immediateAction as string).join("; ")}</Text>
+                      </View>
+                    )}
+                    {verification.length > 0 && (
+                      <View style={s.fieldRow}>
+                        <Text style={s.fieldLabel}>Verification:</Text>
+                        <Text style={s.fieldValue}>{verification.map((v: any) => `${v.activity as string} (${v.frequency as string})`).join("; ")}</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              );
+            })}
+            <PageFooter {...footerProps} />
+          </Page>
+        );
+      })()}
+
+      {/* ── Forms 5–9: Hazard Analysis Summary ──────────────────────────────── */}
+      {(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const forms59Rows: any[] = snapshot.forms59Rows ?? [];
+        if (forms59Rows.length === 0) return null;
+        return (
+          <Page size="LETTER" orientation="landscape" style={{ ...s.page, paddingBottom: 56 }}>
+            <Text style={s.h1}>Forms 5–9: Hazard Analysis Summary</Text>
+            <Text style={{ ...s.para, fontSize: 8, color: "#6b7280", marginBottom: 8 }}>
+              Aggregated across all Flow Charts. Shared steps appear once per Flow Chart.
+            </Text>
+            <PdfForms59 rows={forms59Rows} />
+            <PageFooter {...footerProps} />
+          </Page>
+        );
+      })()}
 
       {/* ── HACCP Team ───────────────────────────────────────────────────────── */}
       <Page size="LETTER" style={s.page}>

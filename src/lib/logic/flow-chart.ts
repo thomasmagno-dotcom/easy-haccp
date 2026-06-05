@@ -35,13 +35,16 @@ export async function ensureDefaultFlowChart(
   return { id, name: "Main Process", flowChartType: "main_process" };
 }
 
-// ── FlowChartStep auto-populate ───────────────────────────────────────────────
+// ── FlowChartStep migration ───────────────────────────────────────────────────
 
 /**
- * Populates flow_chart_steps for `flowChartId` from the plan's processSteps
- * if the junction table is currently empty for that chart.  Idempotent.
+ * Migrates legacy processSteps (planId-keyed) into the flow_chart_steps
+ * junction for the DEFAULT chart only.  Never called for user-created charts.
+ *
+ * Rule: a newly created flow chart is EMPTY.  Users explicitly add or link steps.
+ * Only the first "Main Process" chart may inherit existing steps for backward compat.
  */
-export async function ensureJunction(
+export async function migrateStepsToDefaultChart(
   flowChartId: string,
   planId: string,
 ): Promise<void> {
@@ -51,7 +54,7 @@ export async function ensureJunction(
     .where(eq(flowChartSteps.flowChartId, flowChartId))
     .all();
 
-  if (existing.length > 0) return;
+  if (existing.length > 0) return; // already migrated or has steps
 
   const steps = await db
     .select()
@@ -75,12 +78,26 @@ export async function ensureJunction(
   }
 }
 
+/**
+ * Verifies a chart exists in the junction — does NOT auto-populate.
+ * Use migrateStepsToDefaultChart() for the default chart only.
+ */
+export async function ensureJunction(
+  flowChartId: string,
+  planId: string,
+): Promise<void> {
+  // No-op: this function is a no-op intentionally.
+  // New charts start empty. Existing charts already have their junction rows.
+  // Only the default chart migration populates from processSteps.
+  void flowChartId;
+  void planId;
+}
+
 // ── DAG cycle detection ────────────────────────────────────────────────────────
 
 /**
  * Returns true if adding an edge (sourceStepId → targetStepId) would create
- * a cycle in the step connection graph.  Connections are step-level directed
- * edges; outputId is not considered for cycle detection.
+ * a cycle in the step connection graph.
  *
  * Algorithm: DFS from targetStepId — if we reach sourceStepId, a cycle exists.
  */
@@ -88,26 +105,19 @@ export async function wouldCreateCycle(
   sourceStepId: string,
   targetStepId: string,
 ): Promise<boolean> {
-  // Immediate self-loop
   if (sourceStepId === targetStepId) return true;
 
-  // Fetch all existing connections in the system
   const allConns = await db
-    .select({
-      src: stepConnections.sourceStepId,
-      tgt: stepConnections.targetStepId,
-    })
+    .select({ src: stepConnections.sourceStepId, tgt: stepConnections.targetStepId })
     .from(stepConnections)
     .all();
 
-  // Build adjacency list
   const adj = new Map<string, string[]>();
   for (const { src, tgt } of allConns) {
     if (!adj.has(src)) adj.set(src, []);
     adj.get(src)!.push(tgt);
   }
 
-  // DFS from targetStepId — can we reach sourceStepId?
   const visited = new Set<string>();
   function dfs(node: string): boolean {
     if (node === sourceStepId) return true;

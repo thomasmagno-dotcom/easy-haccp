@@ -4,6 +4,7 @@ import { hazards } from "@/lib/db/schema";
 import { asc } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
 import { SEVERITY_LEVELS, LIKELIHOOD_LEVELS, computeRiskScore, RISK_COLORS } from "@/lib/risk-matrix";
+import { AddHazardDialog } from "@/components/hazards/AddHazardDialog";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +53,7 @@ export default async function HazardsPage() {
               {allHazards.length} hazards across {categoriesWithData} categories — applicable to all food sectors.
             </p>
           </div>
+          <AddHazardDialog />
           {/* Category legend */}
           <div className="flex flex-wrap gap-2 justify-end max-w-lg">
             {orderedTypes.map((type) => {
