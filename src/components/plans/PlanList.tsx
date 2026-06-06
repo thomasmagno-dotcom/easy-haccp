@@ -41,12 +41,39 @@ export function PlanList({ plans: initialPlans }: { plans: Plan[] }) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+  const [renamingPlan, setRenamingPlan] = useState<Plan | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [renaming, setRenaming] = useState(false);
   const router = useRouter();
 
   function openDialog() {
     setNewPlanName("");
     setNewFacilityName("");
     setDialogOpen(true);
+  }
+
+  function openRename(plan: Plan) {
+    setRenamingPlan(plan);
+    setRenameValue(plan.name);
+  }
+
+  async function renamePlan() {
+    if (!renamingPlan || !renameValue.trim()) return;
+    setRenaming(true);
+    const res = await fetch(`/api/plans/${renamingPlan.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: renameValue.trim() }),
+    });
+    if (res.ok) {
+      setPlans((prev) =>
+        prev.map((p) =>
+          p.id === renamingPlan.id ? { ...p, name: renameValue.trim() } : p
+        )
+      );
+      setRenamingPlan(null);
+    }
+    setRenaming(false);
   }
 
   async function duplicatePlan(planId: string) {
@@ -225,6 +252,19 @@ export function PlanList({ plans: initialPlans }: { plans: Plan[] }) {
                   </svg>
                 )}
               </button>
+              {/* Rename */}
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  openRename(plan);
+                }}
+                className="p-1.5 rounded-md text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100"
+                title="Rename plan"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </button>
               {/* Delete */}
               <button
                 onClick={(e) => {
@@ -277,6 +317,39 @@ export function PlanList({ plans: initialPlans }: { plans: Plan[] }) {
             >
               {creating ? "Creating..." : "Create Plan"}
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rename dialog */}
+      <Dialog open={!!renamingPlan} onOpenChange={(o) => { if (!o) setRenamingPlan(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Rename Plan</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div>
+              <Label>Plan Name *</Label>
+              <Input
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                className="mt-1"
+                onKeyDown={(e) => e.key === "Enter" && renamePlan()}
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setRenamingPlan(null)}>
+                Cancel
+              </Button>
+              <Button
+                className="flex-1"
+                disabled={renaming || !renameValue.trim()}
+                onClick={renamePlan}
+              >
+                {renaming ? "Saving..." : "Save"}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
