@@ -105,28 +105,27 @@ export function PrpRegistryClient({ initialRecords, linkCounts }: Props) {
     <div>
       {/* FSEP banner */}
       <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 flex items-start gap-3">
-        <div className="shrink-0 mt-0.5">
-          {/* Canadian maple leaf / CFIA indicator */}
-          <span className="text-red-600 text-xl">🍁</span>
-        </div>
+        <span className="text-red-600 text-xl shrink-0 mt-0.5">🍁</span>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-red-900">
-            CFIA Food Safety Enhancement Program (FSEP)
-          </p>
-          <p className="text-xs text-red-700 mt-0.5">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <p className="text-sm font-semibold text-red-900">
+              CFIA Food Safety Enhancement Program (FSEP)
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadFsepTemplate}
+              disabled={seeding}
+              className="shrink-0 border-red-300 text-red-700 hover:bg-red-100"
+            >
+              {seeding ? "Loading…" : "Load FSEP Template"}
+            </Button>
+          </div>
+          <p className="text-xs text-red-700 mt-1">
             This registry follows the FSEP prerequisite program structure: categories A–G as defined
             in the CFIA FSEP Technical Document. Programs are organized by FSEP element code (e.g., A.1, E.2, G.3).
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={loadFsepTemplate}
-          disabled={seeding}
-          className="shrink-0 border-red-300 text-red-700 hover:bg-red-100"
-        >
-          {seeding ? "Loading…" : "Load FSEP Template"}
-        </Button>
       </div>
 
       {seedMsg && (
@@ -136,13 +135,13 @@ export function PrpRegistryClient({ initialRecords, linkCounts }: Props) {
       )}
 
       {/* Toolbar */}
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex flex-wrap items-center gap-3 mb-4">
         <input
           type="text"
           placeholder="Search by name, FSEP code, reference, owner…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 max-w-sm text-sm border rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-neutral-400"
+          className="flex-1 min-w-40 max-w-sm text-sm border rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-neutral-400"
         />
         <select
           value={filterType}
@@ -156,8 +155,7 @@ export function PrpRegistryClient({ initialRecords, linkCounts }: Props) {
             </option>
           ))}
         </select>
-        <div className="flex-1" />
-        <Button onClick={() => setAddOpen(true)}>+ Add PRP</Button>
+        <Button onClick={() => setAddOpen(true)} className="ml-auto">+ Add PRP</Button>
       </div>
 
       {/* Category filter chips */}
@@ -219,7 +217,7 @@ export function PrpRegistryClient({ initialRecords, linkCounts }: Props) {
             {items.map((prp, idx) => (
               <div
                 key={prp.id}
-                className={`flex items-start gap-4 px-5 py-4 group hover:bg-neutral-50 transition-colors ${
+                className={`relative flex items-start gap-4 px-5 py-4 group hover:bg-neutral-50 transition-colors ${
                   idx > 0 ? "border-t border-neutral-100" : ""
                 }`}
               >
@@ -293,8 +291,8 @@ export function PrpRegistryClient({ initialRecords, linkCounts }: Props) {
                   </div>
                 </div>
 
-                {/* Actions */}
-                <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                {/* Actions — absolutely positioned so they don't affect flex widths */}
+                <div className="absolute right-3 top-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 rounded shadow-sm">
                   <Button variant="ghost" size="sm" className="text-xs" onClick={() => setEditTarget(prp)}>
                     Edit
                   </Button>

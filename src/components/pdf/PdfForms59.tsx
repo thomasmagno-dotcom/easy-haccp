@@ -48,7 +48,8 @@ const COLS = [
   { label: "12\nSignif.",             width: 30 },
   { label: "13\nCCP Det.",            width: 30 },
   { label: "14\nCCP #",              width: 24 },
-  { label: "15\nPRP Reference(s)",    width: 90 },
+  { label: "15\nControl Measures",   width: 90 },
+  { label: "16\nPRP Reference(s)",   width: 90 },
 ];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -207,8 +208,18 @@ export function PdfForms59({ rows }: { rows: HazardSummaryRow[] }) {
                 {row.ccpNumber ?? "—"}
               </Text>
             </Cell>
-            {/* Col 15: PRP References */}
-            <Cell width={COLS[14].width} style={{ borderRightWidth: 0 }}>
+            {/* Col 15: Control Measures */}
+            <Cell width={COLS[14].width}>
+              {row.controlMeasures.length > 0 ? (
+                row.controlMeasures.map((cm, j) => (
+                  <Text key={j} style={{ ...BASE, color: "#374151" }}>{cm}</Text>
+                ))
+              ) : (
+                <Text style={{ ...BASE, color: "#9ca3af" }}>—</Text>
+              )}
+            </Cell>
+            {/* Col 16: PRP References */}
+            <Cell width={COLS[15].width} style={{ borderRightWidth: 0 }}>
               {row.prpReferences.length > 0 ? (
                 row.prpReferences.map((ref, j) => (
                   <Text key={j} style={{ ...BASE, color: "#374151" }}>{ref}</Text>

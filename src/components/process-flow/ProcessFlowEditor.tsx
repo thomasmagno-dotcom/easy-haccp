@@ -427,6 +427,29 @@ export function ProcessFlowEditor({
     }
   }
 
+  async function renameStep(stepId: string, name: string) {
+    const res = await fetch(`/api/plans/${planId}/process-steps`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: stepId, name }),
+    });
+    if (res.ok) {
+      setSteps((prev) => prev.map((s) => s.id === stepId ? { ...s, name } : s));
+    }
+  }
+
+  async function duplicateStep(stepId: string) {
+    const res = await fetch(`/api/plans/${planId}/process-steps?chartId=${activeFlowChartId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "duplicate", stepId }),
+    });
+    if (res.ok) {
+      const step = await res.json();
+      setSteps((prev) => [...prev, step]);
+    }
+  }
+
   // ── Flow chart management ──────────────────────────────────────────────────
 
   async function createFlowChart() {
@@ -1371,6 +1394,8 @@ export function ProcessFlowEditor({
                   hasLocalOverride={!!(step.localOverrides?.name || step.localOverrides?.description)}
                   onOverride={() => openOverrideEditor(step)}
                   onDelete={() => deleteStep(step.id)}
+                  onDuplicate={() => duplicateStep(step.id)}
+                  onRename={(name) => renameStep(step.id, name)}
                   inputs={inputsByStep[step.id] || []}
                   subgraphStepsByInput={subgraphStepsByInput}
                   onAddInput={(name, type) => addInput(step.id, name, type)}

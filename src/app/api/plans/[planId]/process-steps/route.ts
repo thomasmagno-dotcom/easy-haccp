@@ -1,7 +1,20 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { processSteps, flowChartSteps, flowCharts } from "@/lib/db/schema";
-import { eq, asc } from "drizzle-orm";
+import {
+  processSteps,
+  flowChartSteps,
+  flowCharts,
+  stepHazards,
+  controlMeasures,
+  stepInputs,
+  inputSubgraphSteps,
+  inputSubgraphStepHazards,
+  inputSubgraphStepControlMeasures,
+  stepOutputs,
+  outputHazards,
+  outputControlMeasures,
+} from "@/lib/db/schema";
+import { eq, asc, inArray } from "drizzle-orm";
 import { generateId } from "@/lib/utils";
 import { logAudit } from "@/lib/audit";
 import { getNextNumber } from "@/lib/logic/numbering";
@@ -110,6 +123,89 @@ export async function POST(
   const chartId = searchParams.get("chartId");
 
   const flowChartId = await resolveFlowChart(planId, chartId);
+
+  // ── Duplicate step ──
+  if (body.action === "duplicate") {
+    const { stepId: srcStepId } = body as { action: string; stepId: string };
+    const srcStep = await db.select().from(processSteps).where(eq(processSteps.id, srcStepId)).get();
+    if (!srcStep) return NextResponse.json({ error: "Step not found" }, { status: 404 });
+
+    // Compute new number and sequence
+    const existingNumberRows = await db.select({ stepNumber: processSteps.stepNumber }).from(processSteps).where(eq(processSteps.planId, planId)).all();
+    const jRows = await db.select({ sequence: flowChartSteps.sequence }).from(flowChartSteps).where(eq(flowChartSteps.flowChartId, flowChartId)).all();
+    const nextNumber = getNextNumber(existingNumberRows.map((s) => s.stepNumber));
+    const nextSeq = jRows.length > 0 ? Math.max(...jRows.map((j) => j.sequence)) + 1 : nextNumber;
+
+    const newStepId = generateId();
+    const newStep = {
+      id: newStepId,
+      planId,
+      stepNumber: nextNumber,
+      name: `${srcStep.name} (copy)`,
+      description: srcStep.description ?? null,
+      category: srcStep.category ?? null,
+      stepType: srcStep.stepType ?? null,
+      isCcp: false,
+      ccpNumber: null,
+      notes: srcStep.notes ?? null,
+      isSharedMaster: false,
+    };
+    await db.insert(processSteps).values(newStep).run();
+
+    const junctionId = generateId();
+    await db.insert(flowChartSteps).values({ id: junctionId, flowChartId, stepId: newStepId, sequence: nextSeq, isShared: false, localOverrides: null }).run();
+
+    // ── Copy step hazards + control measures ──
+    const srcHazards = await db.select().from(stepHazards).where(eq(stepHazards.stepId, srcStepId)).all();
+    for (const sh of srcHazards) {
+      const newShId = generateId();
+      await db.insert(stepHazards).values({ id: newShId, stepId: newStepId, hazardId: sh.hazardId, isSignificant: sh.isSignificant, justification: sh.justification ?? null, severityOverride: sh.severityOverride ?? null, likelihoodOverride: sh.likelihoodOverride ?? null, severityWithControls: sh.severityWithControls ?? null, likelihoodWithControls: sh.likelihoodWithControls ?? null, decisionTreeAnswers: sh.decisionTreeAnswers ?? null }).run();
+      const srcCMs = await db.select().from(controlMeasures).where(eq(controlMeasures.stepHazardId, sh.id)).all();
+      for (const cm of srcCMs) {
+        await db.insert(controlMeasures).values({ id: generateId(), stepHazardId: newShId, description: cm.description, type: cm.type ?? null }).run();
+      }
+    }
+
+    // ── Copy inputs + subgraph steps + subgraph hazards + subgraph control measures ──
+    const srcInputs = await db.select().from(stepInputs).where(eq(stepInputs.stepId, srcStepId)).all();
+    for (const inp of srcInputs) {
+      const newInpId = generateId();
+      await db.insert(stepInputs).values({ id: newInpId, stepId: newStepId, name: inp.name, type: inp.type ?? null, notes: inp.notes ?? null }).run();
+      const srcSubSteps = await db.select().from(inputSubgraphSteps).where(eq(inputSubgraphSteps.inputId, inp.id)).all();
+      for (const ss of srcSubSteps) {
+        const newSsId = generateId();
+        await db.insert(inputSubgraphSteps).values({ id: newSsId, inputId: newInpId, name: ss.name, stepNumber: ss.stepNumber, category: ss.category ?? null }).run();
+        const srcSsHazards = await db.select().from(inputSubgraphStepHazards).where(eq(inputSubgraphStepHazards.subgraphStepId, ss.id)).all();
+        for (const ssh of srcSsHazards) {
+          const newSshId = generateId();
+          await db.insert(inputSubgraphStepHazards).values({ id: newSshId, subgraphStepId: newSsId, hazardId: ssh.hazardId, isSignificant: ssh.isSignificant, justification: ssh.justification ?? null, severityOverride: ssh.severityOverride ?? null, likelihoodOverride: ssh.likelihoodOverride ?? null, severityWithControls: ssh.severityWithControls ?? null, likelihoodWithControls: ssh.likelihoodWithControls ?? null, decisionTreeAnswers: ssh.decisionTreeAnswers ?? null }).run();
+          const srcSsCMs = await db.select().from(inputSubgraphStepControlMeasures).where(eq(inputSubgraphStepControlMeasures.subgraphHazardId, ssh.id)).all();
+          for (const cm of srcSsCMs) {
+            await db.insert(inputSubgraphStepControlMeasures).values({ id: generateId(), subgraphHazardId: newSshId, description: cm.description, type: cm.type ?? null, prpMasterId: cm.prpMasterId ?? null }).run();
+          }
+        }
+      }
+    }
+
+    // ── Copy outputs + output hazards + output control measures ──
+    const srcOutputs = await db.select().from(stepOutputs).where(eq(stepOutputs.stepId, srcStepId)).all();
+    for (const out of srcOutputs) {
+      const newOutId = generateId();
+      await db.insert(stepOutputs).values({ id: newOutId, stepId: newStepId, name: out.name, outputType: out.outputType, description: out.description ?? null, isCcp: false, ccpNumber: null }).run();
+      const srcOHs = await db.select().from(outputHazards).where(eq(outputHazards.outputId, out.id)).all();
+      for (const oh of srcOHs) {
+        const newOhId = generateId();
+        await db.insert(outputHazards).values({ id: newOhId, outputId: newOutId, hazardId: oh.hazardId, isSignificant: oh.isSignificant, justification: oh.justification ?? null, severityOverride: oh.severityOverride ?? null, likelihoodOverride: oh.likelihoodOverride ?? null, severityWithControls: oh.severityWithControls ?? null, likelihoodWithControls: oh.likelihoodWithControls ?? null, decisionTreeAnswers: oh.decisionTreeAnswers ?? null }).run();
+        const srcOCMs = await db.select().from(outputControlMeasures).where(eq(outputControlMeasures.outputHazardId, oh.id)).all();
+        for (const cm of srcOCMs) {
+          await db.insert(outputControlMeasures).values({ id: generateId(), outputHazardId: newOhId, description: cm.description, type: cm.type ?? null }).run();
+        }
+      }
+    }
+
+    await logAudit({ planId, entityType: "process_step", entityId: newStepId, action: "create", newValue: { ...newStep, duplicatedFrom: srcStepId } });
+    return NextResponse.json({ ...newStep, junctionId, sequence: nextSeq, isShared: false, localOverrides: null }, { status: 201 });
+  }
 
   // ── Reorder ──
   if (body.action === "reorder") {

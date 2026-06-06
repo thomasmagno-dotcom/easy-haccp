@@ -82,6 +82,8 @@ interface Props {
   planId: string;
   activeFlowChartId: string;
   onDelete: () => void;
+  onDuplicate: () => void;
+  onRename: (newName: string) => void;
   inputs: StepInput[];
   subgraphStepsByInput: Record<string, SubgraphStep[]>;
   onAddInput: (name: string, type: string) => void;
@@ -409,7 +411,7 @@ function InputSubgraphBox({
 
 export function FlowNode({
   step, hazardCount, hazardTypes, isShared, hasLocalOverride, onOverride,
-  planId, activeFlowChartId, onDelete,
+  planId, activeFlowChartId, onDelete, onDuplicate, onRename,
   inputs, subgraphStepsByInput,
   onAddInput, onDeleteInput,
   onAddSubgraphStep, onDeleteSubgraphStep, onMoveSubgraphStep,
@@ -424,6 +426,15 @@ export function FlowNode({
   const [showInputForm, setShowInputForm] = useState(false);
   const [newInputName, setNewInputName] = useState("");
   const [newInputType, setNewInputType] = useState("water");
+  const [editingName, setEditingName] = useState(false);
+  const [editNameValue, setEditNameValue] = useState(step.name);
+
+  function commitRename() {
+    const trimmed = editNameValue.trim();
+    setEditingName(false);
+    if (trimmed && trimmed !== step.name) onRename(trimmed);
+    else setEditNameValue(step.name);
+  }
 
   const style = { transform: CSS.Transform.toString(transform), transition };
 
@@ -610,7 +621,22 @@ export function FlowNode({
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-semibold text-sm text-neutral-900 truncate">{step.name}</span>
+              {editingName ? (
+                <input
+                  autoFocus
+                  value={editNameValue}
+                  onChange={(e) => setEditNameValue(e.target.value)}
+                  onBlur={commitRename}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") commitRename();
+                    if (e.key === "Escape") { setEditingName(false); setEditNameValue(step.name); }
+                  }}
+                  onClick={(e) => e.preventDefault()}
+                  className="font-semibold text-sm text-neutral-900 bg-white border border-neutral-300 rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-neutral-400 w-48"
+                />
+              ) : (
+                <span className="font-semibold text-sm text-neutral-900 truncate">{step.name}</span>
+              )}
               {step.isCcp && (
                 <Badge variant="destructive" className="text-xs font-bold shrink-0">{step.ccpNumber}</Badge>
               )}
@@ -659,6 +685,28 @@ export function FlowNode({
             </svg>
           </button>
         )}
+
+        {/* Rename button */}
+        <button
+          onClick={(e) => { e.preventDefault(); setEditNameValue(step.name); setEditingName(true); }}
+          className="w-8 shrink-0 flex items-center justify-center border-l border-black/5 text-neutral-300 hover:text-neutral-600 hover:bg-neutral-50 opacity-0 group-hover:opacity-100 transition-all"
+          title="Rename step"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+        </button>
+
+        {/* Duplicate button */}
+        <button
+          onClick={(e) => { e.preventDefault(); onDuplicate(); }}
+          className="w-8 shrink-0 flex items-center justify-center border-l border-black/5 text-neutral-300 hover:text-blue-500 hover:bg-blue-50 opacity-0 group-hover:opacity-100 transition-all"
+          title="Duplicate step (copies all hazard analysis)"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
+        </button>
 
         {/* Delete / Unlink button */}
         <button

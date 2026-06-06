@@ -4,12 +4,15 @@ import {
   flowChartSteps,
   processSteps,
   stepHazards,
+  controlMeasures,
   hazards,
   stepOutputs,
   outputHazards,
+  outputControlMeasures,
   stepInputs,
   inputSubgraphSteps,
   inputSubgraphStepHazards,
+  inputSubgraphStepControlMeasures,
   hazardPrp,
   prpMaster,
 } from "@/lib/db/schema";
@@ -32,6 +35,7 @@ export interface HazardSummaryRow {
   ccpDetermination: string; // "CCP" | "Non-CCP" | ""
   ccpNumber: string | null;
   prpReferences: string[];
+  controlMeasures: string[];
 }
 
 function calcRiskLevel(severity: string | null, likelihood: string | null): string | null {
@@ -199,6 +203,39 @@ export async function buildForms59Rows(planId: string): Promise<HazardSummaryRow
     prpsByHazardId.get(link.hazardId)!.push(prp);
   }
 
+  // ── Control measures by step hazard id ─────────────────────────────────────
+  const allStepHazardIds = stepHazardRows.map((r) => r.sh.id);
+  const cmRowsByShId = new Map<string, string[]>();
+  if (allStepHazardIds.length > 0) {
+    const cmRows = await db.select().from(controlMeasures).where(inArray(controlMeasures.stepHazardId, allStepHazardIds)).all();
+    for (const cm of cmRows) {
+      if (!cmRowsByShId.has(cm.stepHazardId)) cmRowsByShId.set(cm.stepHazardId, []);
+      cmRowsByShId.get(cm.stepHazardId)!.push(cm.description);
+    }
+  }
+
+  // ── Control measures by output hazard id ───────────────────────────────────
+  const allOutputHazardIds = outputHazardRows.map((r) => r.oh.id);
+  const cmRowsByOhId = new Map<string, string[]>();
+  if (allOutputHazardIds.length > 0) {
+    const cmRows = await db.select().from(outputControlMeasures).where(inArray(outputControlMeasures.outputHazardId, allOutputHazardIds)).all();
+    for (const cm of cmRows) {
+      if (!cmRowsByOhId.has(cm.outputHazardId)) cmRowsByOhId.set(cm.outputHazardId, []);
+      cmRowsByOhId.get(cm.outputHazardId)!.push(cm.description);
+    }
+  }
+
+  // ── Control measures by subgraph hazard id ─────────────────────────────────
+  const allSubgraphHazardIds = subgraphHazardRows.map((r) => r.ish.id);
+  const cmRowsBySshId = new Map<string, string[]>();
+  if (allSubgraphHazardIds.length > 0) {
+    const cmRows = await db.select().from(inputSubgraphStepControlMeasures).where(inArray(inputSubgraphStepControlMeasures.subgraphHazardId, allSubgraphHazardIds)).all();
+    for (const cm of cmRows) {
+      if (!cmRowsBySshId.has(cm.subgraphHazardId)) cmRowsBySshId.set(cm.subgraphHazardId, []);
+      cmRowsBySshId.get(cm.subgraphHazardId)!.push(cm.description);
+    }
+  }
+
   // ── Build rows ──────────────────────────────────────────────────────────────
   const rows: HazardSummaryRow[] = [];
 
@@ -230,6 +267,7 @@ export async function buildForms59Rows(planId: string): Promise<HazardSummaryRow
               ccpDetermination: ccpDetermFromAnswers(ish.decisionTreeAnswers),
               ccpNumber: null,
               prpReferences: prps,
+              controlMeasures: cmRowsBySshId.get(ish.id) ?? [],
             });
           }
         }
@@ -259,6 +297,7 @@ export async function buildForms59Rows(planId: string): Promise<HazardSummaryRow
           ccpDetermination: ccpDetermFromAnswers(sh.decisionTreeAnswers),
           ccpNumber: step.ccpNumber ?? null,
           prpReferences: prps,
+          controlMeasures: cmRowsByShId.get(sh.id) ?? [],
         });
       }
 
@@ -287,6 +326,7 @@ export async function buildForms59Rows(planId: string): Promise<HazardSummaryRow
             ccpDetermination: ccpDetermFromAnswers(oh.decisionTreeAnswers),
             ccpNumber: out.ccpNumber ?? null,
             prpReferences: prps,
+            controlMeasures: cmRowsByOhId.get(oh.id) ?? [],
           });
         }
       }

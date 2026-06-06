@@ -86,7 +86,7 @@ export default async function HazardSummaryPage({
                 <th colSpan={3} className="px-3 py-1.5 text-center text-[10px] font-bold text-green-700 bg-green-50 border-r border-neutral-200">
                   Risk With Controls
                 </th>
-                <th colSpan={4} className="px-3 py-1.5 border-neutral-200" />
+                <th colSpan={5} className="px-3 py-1.5 border-neutral-200" />
               </tr>
               {/* Column header row */}
               <tr>
@@ -105,7 +105,8 @@ export default async function HazardSummaryPage({
                   ["12", "Significant"],
                   ["13", "CCP Det."],
                   ["14", "CCP #"],
-                  ["15", "PRP Reference(s)"],
+                  ["15", "Control Measures"],
+                  ["16", "PRP Reference(s)"],
                 ].map(([num, label], idx) => (
                   <th
                     key={num}
@@ -201,7 +202,19 @@ export default async function HazardSummaryPage({
                     <td className="px-3 py-2 border-r border-neutral-100 whitespace-nowrap font-medium text-neutral-700">
                       {row.ccpNumber ?? "—"}
                     </td>
-                    {/* Col 15: PRP References */}
+                    {/* Col 15: Control Measures */}
+                    <td className="px-3 py-2 border-r border-neutral-100 max-w-xs">
+                      {row.controlMeasures.length > 0 ? (
+                        <ul className="space-y-0.5">
+                          {row.controlMeasures.map((cm, j) => (
+                            <li key={j} className="text-neutral-600">{cm}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <span className="text-neutral-400">—</span>
+                      )}
+                    </td>
+                    {/* Col 16: PRP References */}
                     <td className="px-3 py-2 max-w-xs">
                       {row.prpReferences.length > 0 ? (
                         <ul className="space-y-0.5">
