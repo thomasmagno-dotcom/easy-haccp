@@ -658,10 +658,10 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
                           const col = OUTPUT_COLORS[outType] ?? OUTPUT_COLORS.other;
                           const label = OUTPUT_TYPE_LABELS[outType] ?? outType;
                           const outHazardTypes: string[] = (out.hazardTypes as string[]) || [];
-                          // Use the pre-computed allProducers from the route — this correctly
-                          // identifies the primary owner regardless of which step's column we're in.
                           const allProducers: Array<{ stepId: string; stepLabel: string; stepName: string; isPrimary: boolean }> =
                             (out.allProducers as any[]) ?? [];
+                          const outgoingConns: Array<{ targetStepName: string; targetStepLabel: string; connectionType: string }> =
+                            (out.outgoingConnections as any[]) ?? [];
                           const isShared = allProducers.length > 1;
                           return (
                             <View key={k} style={{ borderWidth: 1, borderColor: col.border, borderRadius: 3, marginBottom: k < stepOutputsList.length - 1 ? 3 : 0, overflow: "hidden" }}>
@@ -700,6 +700,15 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
                                     </Text>
                                   );
                                 })}
+                                {outgoingConns.length > 0 && (
+                                  <View style={{ marginTop: 2 }}>
+                                    {outgoingConns.map((conn, ci) => (
+                                      <Text key={ci} style={{ fontSize: 5.5, color: conn.connectionType === "direct" ? "#1d4ed8" : "#7c3aed", marginTop: 1 }}>
+                                        {conn.connectionType === "direct" ? "→" : "⤷"} {conn.targetStepLabel}: {conn.targetStepName}
+                                      </Text>
+                                    ))}
+                                  </View>
+                                )}
                                 {outHazardTypes.length > 0 && (
                                   <View style={{ marginTop: 2 }}>
                                     <PdfHazardTypeBadges types={outHazardTypes} />

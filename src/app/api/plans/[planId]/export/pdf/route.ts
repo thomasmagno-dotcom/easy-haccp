@@ -180,10 +180,12 @@ export async function GET(
   }
 
   type OutputProducer = { stepId: string; stepLabel: string; stepName: string; isPrimary: boolean };
+  type OutgoingConnection = { targetStepName: string; targetStepLabel: string; connectionType: string };
   type EnrichedOutput = typeof allOutputRows[0] & {
     hazardTypes: string[];
     sourceSteps?: Array<{ stepId: string; stepName: string; stepNumber: number; stepLabel: string }>;
     allProducers?: OutputProducer[]; // pre-computed: primary owner + all additional sources
+    outgoingConnections?: OutgoingConnection[];
   };
   const outputsByStep = new Map<string, Array<EnrichedOutput>>();
   for (const out of allOutputRows) {
@@ -296,6 +298,25 @@ export async function GET(
       allSourceSteps,
       connectionType: conn.connectionType,
     });
+  }
+
+  // Build outgoing connections per output: outputId → [{targetStepName, connectionType}]
+  const outgoingConnsByOutputId = new Map<string, OutgoingConnection[]>();
+  for (const conn of allConns) {
+    const tgtStep = steps.find((s) => s.id === conn.targetStepId);
+    if (!outgoingConnsByOutputId.has(conn.sourceOutputId)) outgoingConnsByOutputId.set(conn.sourceOutputId, []);
+    outgoingConnsByOutputId.get(conn.sourceOutputId)!.push({
+      targetStepName:  tgtStep?.name ?? "—",
+      targetStepLabel: makeStepLabelPdf(conn.targetStepId),
+      connectionType:  conn.connectionType,
+    });
+  }
+
+  // Attach outgoing connections to each enriched output
+  for (const [, outs] of outputsByStep) {
+    for (const out of outs) {
+      (out as EnrichedOutput).outgoingConnections = outgoingConnsByOutputId.get(out.id) ?? [];
+    }
   }
 
   // ── Hazard data per step (with control measures + decision tree) ───────────
