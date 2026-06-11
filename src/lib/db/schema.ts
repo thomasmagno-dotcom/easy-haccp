@@ -413,6 +413,7 @@ export const prpMaster = sqliteTable("prp_master", {
   programName: text("program_name").notNull(),
   prpType: text("prp_type").notNull(), // A | B | C | D | E | F | G  (FSEP main category)
   fsepCode: text("fsep_code"),         // e.g. "A.1", "E.2", "G.1"  (FSEP element code)
+  sfcrSection: text("sfcr_section"),   // e.g. "s.56, s.59"  (Safe Food for Canadians Regulations legal reference)
   description: text("description"),
   documentReference: text("document_reference"), // e.g. "SOP-012"
   documentUrl: text("document_url"),             // live link to actual document

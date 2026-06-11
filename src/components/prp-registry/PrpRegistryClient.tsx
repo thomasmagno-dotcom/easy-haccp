@@ -247,6 +247,11 @@ export function PrpRegistryClient({ initialRecords, linkCounts }: Props) {
                       </Badge>
                     )}
                   </div>
+                  {prp.sfcrSection && (
+                    <span className="text-[11px] font-mono text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
+                      SFCR {prp.sfcrSection}
+                    </span>
+                  )}
                   {prp.description && (
                     <p className="text-xs text-neutral-500 mt-1 line-clamp-2">{prp.description}</p>
                   )}

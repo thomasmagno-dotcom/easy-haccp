@@ -18,6 +18,8 @@ export async function POST(req: Request) {
   const {
     programName,
     prpType,
+    fsepCode,
+    sfcrSection,
     description,
     documentReference,
     documentUrl,
@@ -40,6 +42,8 @@ export async function POST(req: Request) {
     id,
     programName,
     prpType,
+    fsepCode: fsepCode ?? null,
+    sfcrSection: sfcrSection ?? null,
     description: description ?? null,
     documentReference: documentReference ?? null,
     documentUrl: documentUrl ?? null,

@@ -22,47 +22,62 @@ import { FSEP_CATEGORIES } from "./PrpRegistryClient";
 import type { PrpMaster, DocumentSource } from "@/lib/types";
 
 // ── FSEP element options per category ────────────────────────────────────────
-// Used to populate the element code dropdown based on selected category
 
-const FSEP_ELEMENTS: Record<string, { code: string; name: string }[]> = {
+const FSEP_ELEMENTS: Record<string, { code: string; name: string; sfcrSection: string }[]> = {
   A: [
-    { code: "A.1",   name: "A.1 — Outside Property" },
-    { code: "A.2",   name: "A.2 — Establishment (Design, Construction and Maintenance)" },
-    { code: "A.2.2", name: "A.2.2 — Movement of Persons and Things" },
-    { code: "A.2.3", name: "A.2.3 — Lighting" },
-    { code: "A.2.4", name: "A.2.4 — Ventilation" },
-    { code: "A.2.5", name: "A.2.5 — Waste and Inedible / Food Disposal" },
-    { code: "A.3.1", name: "A.3.1 — Employee Facilities" },
-    { code: "A.3.2", name: "A.3.2 — Hand-Washing Stations and Sanitizing Installations" },
-    { code: "A.4",   name: "A.4 — Water, Ice and Steam Supply" },
+    { code: "A.1",   name: "A.1 — Outside Property",                       sfcrSection: "s.56, s.59"  },
+    { code: "A.2",   name: "A.2 — Inside Property",                        sfcrSection: "s.57–62"     },
+    { code: "A.2.1", name: "A.2.1 — Structural Design & Maintenance",       sfcrSection: "s.57–62"     },
+    { code: "A.2.2", name: "A.2.2 — Lighting",                             sfcrSection: "s.66"        },
+    { code: "A.2.3", name: "A.2.3 — Ventilation",                          sfcrSection: "s.67"        },
+    { code: "A.2.4", name: "A.2.4 — Waste Disposal & Drainage",            sfcrSection: "s.69–71"     },
+    { code: "A.3",   name: "A.3 — Sanitary Facilities",                    sfcrSection: "s.63–65"     },
+    { code: "A.3.1", name: "A.3.1 — Employee Amenities",                   sfcrSection: "s.63–65"     },
+    { code: "A.3.2", name: "A.3.2 — Handwash & Sanitizing Stations",       sfcrSection: "s.63–65"     },
+    { code: "A.4",   name: "A.4 — Water, Ice and Steam Quality",           sfcrSection: "s.68"        },
   ],
   B: [
-    { code: "B.1",   name: "B.1 — Food Conveyances" },
-    { code: "B.2.1", name: "B.2.1 — Purchasing and Receiving" },
-    { code: "B.2.2", name: "B.2.2 — Storage" },
+    { code: "B.1",   name: "B.1 — Food Conveyances",                       sfcrSection: "s.49–52"     },
+    { code: "B.2",   name: "B.2 — Purchasing, Receiving and Storage",      sfcrSection: "s.72–74"     },
+    { code: "B.2.1", name: "B.2.1 — Purchasing, Receiving & Shipping",     sfcrSection: "s.72–74"     },
+    { code: "B.2.2", name: "B.2.2 — Storage",                              sfcrSection: "s.74"        },
+    { code: "B.2.3", name: "B.2.3 — Control of Non-Food Chemicals",        sfcrSection: "s.72–73"     },
   ],
   C: [
-    { code: "C.1.1", name: "C.1.1 — Equipment Design and Installation" },
-    { code: "C.1.2", name: "C.1.2 — Equipment Maintenance and Calibration" },
+    { code: "C.1",   name: "C.1 — Equipment Design and Installation",      sfcrSection: "s.53–55"     },
+    { code: "C.1.1", name: "C.1.1 — Equipment Cleanability & Design",      sfcrSection: "s.53–55"     },
+    { code: "C.2",   name: "C.2 — Equipment Maintenance & Calibration",    sfcrSection: "s.53"        },
+    { code: "C.2.1", name: "C.2.1 — Preventive Maintenance & Calibration", sfcrSection: "s.53"        },
   ],
   D: [
-    { code: "D.1.1", name: "D.1.1 — General Food Hygiene Training" },
-    { code: "D.1.2", name: "D.1.2 — Technical Training" },
-    { code: "D.2",   name: "D.2 — General Food Hygiene Program" },
+    { code: "D.1",   name: "D.1 — Training",                               sfcrSection: "s.80"        },
+    { code: "D.1.1", name: "D.1.1 — Hygiene & Technical Training",         sfcrSection: "s.80"        },
+    { code: "D.2",   name: "D.2 — Hygiene and Health Requirements",        sfcrSection: "s.76–79"     },
+    { code: "D.2.1", name: "D.2.1 — Personal Cleanliness",                 sfcrSection: "s.76–79"     },
+    { code: "D.2.2", name: "D.2.2 — Communicable Diseases & Illness",      sfcrSection: "s.76–79"     },
+    { code: "D.2.3", name: "D.2.3 — Visitor & Contractor Controls",        sfcrSection: "s.76–79"     },
   ],
   E: [
-    { code: "E.1", name: "E.1 — Sanitation Program" },
-    { code: "E.2", name: "E.2 — Pest Control Program" },
+    { code: "E.1",   name: "E.1 — Sanitation Program",                     sfcrSection: "s.49–50, s.75" },
+    { code: "E.1.1", name: "E.1.1 — Cleaning & Sanitizing SOPs",           sfcrSection: "s.49–50, s.75" },
+    { code: "E.1.2", name: "E.1.2 — Pre-Operational Inspections",          sfcrSection: "s.75"          },
+    { code: "E.2",   name: "E.2 — Pest Control Program",                   sfcrSection: "s.59, s.75"    },
+    { code: "E.2.1", name: "E.2.1 — Exclusion & Elimination SOPs",         sfcrSection: "s.59, s.75"    },
   ],
   F: [
-    { code: "F.1",   name: "F.1 — Recall Plan" },
-    { code: "F.2.1", name: "F.2.1 — Traceability System (Documents)" },
-    { code: "F.2.2", name: "F.2.2 — Labelling for Traceability" },
+    { code: "F.1",   name: "F.1 — Recall Plan",                            sfcrSection: "s.82–89"     },
+    { code: "F.1.1", name: "F.1.1 — Traceback & Product Codes",            sfcrSection: "s.82–85"     },
+    { code: "F.1.2", name: "F.1.2 — Recall Response Protocols",            sfcrSection: "s.86–89"     },
+    { code: "F.1.3", name: "F.1.3 — Mock Recalls",                         sfcrSection: "s.86–89"     },
   ],
   G: [
-    { code: "G.1", name: "G.1 — Allergen, Gluten and Added Sulphites Control" },
-    { code: "G.2", name: "G.2 — Food Additives, Processing Aids and Added Nutrients" },
-    { code: "G.3", name: "G.3 — Foreign Material Control Program" },
+    { code: "G.1",   name: "G.1 — Allergen Management Control",            sfcrSection: "s.47"        },
+    { code: "G.1.1", name: "G.1.1 — Cross-Contact Prevention",             sfcrSection: "s.47"        },
+    { code: "G.2",   name: "G.2 — Foreign Matter Control",                 sfcrSection: "s.47"        },
+    { code: "G.2.1", name: "G.2.1 — Physical Hazard Controls",             sfcrSection: "s.47"        },
+    { code: "G.3",   name: "G.3 — Other Product-Specific Controls",        sfcrSection: "s.47–48"     },
+    { code: "G.3.1", name: "G.3.1 — Processing Environment Controls",      sfcrSection: "s.47–48"     },
+    { code: "G.3.2", name: "G.3.2 — Rework Formulation Control",           sfcrSection: "s.47–48"     },
   ],
 };
 
@@ -75,8 +90,9 @@ const DOCUMENT_SOURCE_OPTIONS: { value: DocumentSource; label: string }[] = [
 
 interface FormState {
   programName: string;
-  prpType: string;      // FSEP category letter A–G
-  fsepCode: string;     // FSEP element code e.g. "A.1"
+  prpType: string;
+  fsepCode: string;
+  sfcrSection: string;
   description: string;
   documentReference: string;
   documentUrl: string;
@@ -92,6 +108,7 @@ function initForm(prp?: PrpMaster): FormState {
     programName:       prp?.programName       ?? "",
     prpType:           prp?.prpType           ?? "A",
     fsepCode:          prp?.fsepCode          ?? "",
+    sfcrSection:       prp?.sfcrSection        ?? "",
     description:       prp?.description       ?? "",
     documentReference: prp?.documentReference ?? "",
     documentUrl:       prp?.documentUrl       ?? "",
@@ -115,32 +132,49 @@ export function PrpFormDialog({ open, prp, onClose, onSaved }: Props) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Track whether the user is entering a custom code that doesn't match any
+  // FSEP element, so the free-text input stays visible while they type.
+  const elementOptions = FSEP_ELEMENTS[form.prpType] ?? [];
+  const matchesKnownCode = elementOptions.some((e) => e.code === form.fsepCode);
+  const [customMode, setCustomMode] = useState<boolean>(
+    () => !!prp?.fsepCode && !Object.values(FSEP_ELEMENTS).flat().some((e) => e.code === prp.fsepCode),
+  );
+
   function set(field: keyof FormState, value: string) {
     setForm((prev) => {
       const next = { ...prev, [field]: value };
-      // When category changes, reset fsepCode unless the existing code matches
       if (field === "prpType" && value !== prev.prpType) {
         next.fsepCode = "";
+        next.sfcrSection = "";
       }
       return next;
     });
     setError(null);
   }
 
-  // When user picks an element, also auto-fill the program name if blank
   function setElement(code: string) {
-    const elements = FSEP_ELEMENTS[form.prpType] ?? [];
-    const el = elements.find((e) => e.code === code);
+    if (code === "_custom") {
+      setCustomMode(true);
+      setForm((prev) => ({ ...prev, fsepCode: "", sfcrSection: "" }));
+      return;
+    }
+    setCustomMode(false);
+    const el = elementOptions.find((e) => e.code === code);
     setForm((prev) => ({
       ...prev,
       fsepCode: code,
-      // Auto-fill name from FSEP element if name is still blank
+      sfcrSection: el?.sfcrSection ?? prev.sfcrSection,
       programName: prev.programName.trim() === "" && el
-        ? el.name.replace(/^[A-Z]\.\d[\d.]*\s*—\s*/, "") // strip "A.1 — " prefix
+        ? el.name.replace(/^[A-Z]\.\d[\d.]*\s*—\s*/, "")
         : prev.programName,
     }));
     setError(null);
   }
+
+  // Dropdown value: show "_custom" when in custom mode (unmatched code), else the code
+  const dropdownValue = customMode || (!matchesKnownCode && form.fsepCode)
+    ? "_custom"
+    : form.fsepCode || "";
 
   async function save() {
     if (!form.programName.trim()) {
@@ -153,6 +187,7 @@ export function PrpFormDialog({ open, prp, onClose, onSaved }: Props) {
       programName:       form.programName.trim(),
       prpType:           form.prpType,
       fsepCode:          form.fsepCode.trim()       || null,
+      sfcrSection:       form.sfcrSection.trim()    || null,
       description:       form.description.trim()    || null,
       documentReference: form.documentReference.trim() || null,
       documentUrl:       form.documentUrl.trim()    || null,
@@ -179,7 +214,6 @@ export function PrpFormDialog({ open, prp, onClose, onSaved }: Props) {
     }
   }
 
-  const elementOptions = FSEP_ELEMENTS[form.prpType] ?? [];
   const selectedCategory = FSEP_CATEGORIES.find((c) => c.type === form.prpType);
 
   return (
@@ -199,7 +233,7 @@ export function PrpFormDialog({ open, prp, onClose, onSaved }: Props) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label className="text-xs">FSEP Category *</Label>
-                <Select value={form.prpType} onValueChange={(v) => v && set("prpType", v)}>
+                <Select value={form.prpType} onValueChange={(v) => { if (v) { set("prpType", v); setCustomMode(false); } }}>
                   <SelectTrigger className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
@@ -218,7 +252,7 @@ export function PrpFormDialog({ open, prp, onClose, onSaved }: Props) {
               </div>
               <div>
                 <Label className="text-xs">FSEP Element</Label>
-                <Select value={form.fsepCode || ""} onValueChange={(v) => v && setElement(v)}>
+                <Select value={dropdownValue} onValueChange={(v) => v && setElement(v)}>
                   <SelectTrigger className="mt-1">
                     <SelectValue placeholder="Select element…" />
                   </SelectTrigger>
@@ -231,17 +265,36 @@ export function PrpFormDialog({ open, prp, onClose, onSaved }: Props) {
                         </span>
                       </SelectItem>
                     ))}
-                    <SelectItem value="custom">Custom / Other</SelectItem>
+                    <SelectItem value="_custom">Custom / Other</SelectItem>
                   </SelectContent>
                 </Select>
-                {form.fsepCode === "custom" && (
+                {/* Custom code input — shown when in custom mode */}
+                {(customMode || (!matchesKnownCode && form.fsepCode)) && (
                   <Input
                     className="mt-2 text-xs"
-                    placeholder="Enter custom code, e.g. A.2.1"
+                    placeholder="Enter custom code, e.g. A.2.6"
+                    value={form.fsepCode}
                     onChange={(e) => set("fsepCode", e.target.value)}
                   />
                 )}
               </div>
+            </div>
+
+            {/* SFCR section — auto-filled for FSEP, editable for custom */}
+            <div>
+              <Label className="text-xs">
+                SFCR Legal Reference
+                {!customMode && matchesKnownCode && (
+                  <span className="ml-1 text-neutral-400 font-normal">(auto-filled from FSEP)</span>
+                )}
+              </Label>
+              <Input
+                className="mt-1 text-xs font-mono"
+                placeholder="e.g. s.56, s.59"
+                value={form.sfcrSection}
+                onChange={(e) => set("sfcrSection", e.target.value)}
+                readOnly={!customMode && matchesKnownCode}
+              />
             </div>
           </div>
 
