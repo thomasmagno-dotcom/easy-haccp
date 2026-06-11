@@ -10,6 +10,7 @@ const TABS = [
   { href: "hazard-summary", label: "Hazard Summary" },
   { href: "ccp-summary", label: "CCP Summary" },
   { href: "documents", label: "Documents" },
+  { href: "references", label: "References" },
   { href: "versions", label: "Versions" },
   { href: "export", label: "Export PDF" },
 ];

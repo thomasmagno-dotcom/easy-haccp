@@ -9,6 +9,7 @@ import {
   Polygon,
 } from "@react-pdf/renderer";
 import { PdfForms59 } from "./PdfForms59";
+import { REFERENCES, REFERENCE_CATEGORIES } from "@/lib/references";
 
 const s = StyleSheet.create({
   page: { padding: 40, paddingBottom: 56, fontFamily: "Helvetica", fontSize: 9, color: "#1a1a1a" },
@@ -1258,6 +1259,56 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
             ))}
           </View>
         )}
+        <PageFooter {...footerProps} />
+      </Page>
+
+      {/* ── References ───────────────────────────────────────────────────────── */}
+      <Page size="LETTER" style={s.page}>
+        <Text style={s.h1}>References</Text>
+        <Text style={{ ...s.para, fontSize: 8, color: "#6b7280", marginBottom: 12 }}>
+          Regulatory, guidance, and scientific sources that underpin this HACCP plan — including
+          the hazard database, prerequisite program structure, risk matrix, and CCP decision tree.
+        </Text>
+
+        {REFERENCE_CATEGORIES
+          .map((cat) => ({ cat, items: REFERENCES.filter((r) => r.category === cat) }))
+          .filter((g) => g.items.length > 0)
+          .map(({ cat, items }) => (
+            <View key={cat} style={{ marginBottom: 14 }} wrap={false}>
+              {/* Category heading */}
+              <View style={{ borderBottomWidth: 1, borderBottomColor: "#d1d5db", marginBottom: 6, paddingBottom: 2 }}>
+                <Text style={{ fontSize: 8, fontFamily: "Helvetica-Bold", color: "#6b7280", textTransform: "uppercase", letterSpacing: 0.8 }}>
+                  {cat}
+                </Text>
+              </View>
+
+              {items.map((ref) => (
+                <View key={ref.id} style={{ flexDirection: "row", marginBottom: 7 }}>
+                  {/* Citation + year column */}
+                  <View style={{ width: 110, paddingRight: 8 }}>
+                    <Text style={{ fontSize: 7.5, fontFamily: "Helvetica-Bold", color: "#1a1a1a" }}>{ref.citation}</Text>
+                    <Text style={{ fontSize: 6.5, color: "#9ca3af", marginTop: 1 }}>{ref.year}</Text>
+                  </View>
+
+                  {/* Title / publisher / description */}
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 7.5, fontFamily: "Helvetica-Bold", color: "#1a1a1a" }}>{ref.title}</Text>
+                    <Text style={{ fontSize: 7, color: "#6b7280", marginTop: 1 }}>{ref.publisher}</Text>
+                    <Text style={{ fontSize: 7, color: "#374151", marginTop: 2, lineHeight: 1.4 }}>{ref.description}</Text>
+                    {ref.url && (
+                      <Text style={{ fontSize: 6.5, color: "#2563eb", marginTop: 1 }}>{ref.url}</Text>
+                    )}
+                  </View>
+                </View>
+              ))}
+            </View>
+          ))}
+
+        <Text style={{ fontSize: 7, color: "#9ca3af", marginTop: 8, borderTopWidth: 1, borderTopColor: "#e5e7eb", paddingTop: 6 }}>
+          This reference list reflects the standards and regulations applied at the time of plan preparation.
+          Users are responsible for verifying that cited documents remain current and applicable to their jurisdiction and product category.
+        </Text>
+
         <PageFooter {...footerProps} />
       </Page>
 
