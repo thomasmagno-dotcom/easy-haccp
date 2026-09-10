@@ -23,6 +23,7 @@ type FsepProgram = {
   programName: string;
   description: string;
   sfcrSection: string;
+  sqfSection: string;
 };
 
 const FSEP_PROGRAMS: FsepProgram[] = [
@@ -34,6 +35,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Maintenance of grounds surrounding the establishment to minimize contamination risks. Includes drainage, waste storage areas, roadways, and parking lot upkeep.",
     sfcrSection: "s.56, s.59",
+    sqfSection: "SQF 11.1.7",
   },
   {
     fsepCode: "A.2",
@@ -42,6 +44,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Physical design, construction materials, and maintenance of the building interior. Covers floors, walls, ceilings, doors, windows, and separation of incompatible operations.",
     sfcrSection: "s.57–62",
+    sqfSection: "SQF 11.1.2",
   },
   {
     fsepCode: "A.2.1",
@@ -50,6 +53,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Design, construction, and ongoing maintenance of the building structure including floors, walls, ceilings, and all interior surfaces to prevent contamination.",
     sfcrSection: "s.57–62",
+    sqfSection: "SQF 11.1.2",
   },
   {
     fsepCode: "A.2.2",
@@ -58,6 +62,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Adequate lighting of sufficient intensity in all work areas, inspection stations, and storage areas in compliance with regulatory requirements.",
     sfcrSection: "s.66",
+    sqfSection: "SQF 11.1.3",
   },
   {
     fsepCode: "A.2.3",
@@ -66,6 +71,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Ventilation systems that prevent condensation, control odours, and minimize air contamination of food contact surfaces. Includes HVAC maintenance.",
     sfcrSection: "s.67",
+    sqfSection: "SQF 11.1.5",
   },
   {
     fsepCode: "A.2.4",
@@ -74,6 +80,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Procedures for handling, storing, and disposing of waste, inedible material, and by-products to prevent contamination of food and food contact surfaces.",
     sfcrSection: "s.69–71",
+    sqfSection: "SQF 11.8.1",
   },
   {
     fsepCode: "A.3",
@@ -82,6 +89,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Adequate sanitary facilities including washrooms, handwash stations, and employee amenities maintained in a clean and sanitary condition.",
     sfcrSection: "s.63–65",
+    sqfSection: "SQF 11.3.5",
   },
   {
     fsepCode: "A.3.1",
@@ -90,6 +98,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Adequate change rooms, washrooms, lunchrooms, and locker facilities maintained in a clean and sanitary condition. Physically separated from food processing areas.",
     sfcrSection: "s.63–65",
+    sqfSection: "SQF 11.3.5",
   },
   {
     fsepCode: "A.3.2",
@@ -98,6 +107,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Sufficient number of hand-washing stations equipped with hot and cold running water, soap, and single-use towels or air dryers, located at appropriate points throughout the facility.",
     sfcrSection: "s.63–65",
+    sqfSection: "SQF 11.3.2",
   },
   {
     fsepCode: "A.4",
@@ -106,6 +116,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Potable water supply adequate in quantity and pressure for all food production, cleaning, and sanitation needs. Includes water quality testing, ice production, and steam generation.",
     sfcrSection: "s.68",
+    sqfSection: "SQF 11.5",
   },
 
   // ── B. Food Conveyances, Purchasing, Receiving and Storage ────────────────
@@ -116,6 +127,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Vehicles and containers used to transport food products, ingredients, and packaging materials are clean, maintained, and appropriate for the product. Includes temperature control during transport.",
     sfcrSection: "s.49–52",
+    sqfSection: "SQF 11.6.5",
   },
   {
     fsepCode: "B.2",
@@ -124,6 +136,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Controls covering supplier approval, incoming material inspection, and proper storage of ingredients, packaging, and finished goods.",
     sfcrSection: "s.72–74",
+    sqfSection: "SQF 2.3.4, 11.6.1",
   },
   {
     fsepCode: "B.2.1",
@@ -132,6 +145,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Approved supplier program, incoming material specifications, and receiving inspection procedures. Covers verification of supplier compliance and acceptance/rejection criteria.",
     sfcrSection: "s.72–74",
+    sqfSection: "SQF 2.3.4",
   },
   {
     fsepCode: "B.2.2",
@@ -140,6 +154,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Proper storage conditions for ingredients, packaging materials, and finished products including temperature and humidity control, FIFO rotation, and segregation of incompatible materials.",
     sfcrSection: "s.74",
+    sqfSection: "SQF 11.6.1–11.6.3",
   },
   {
     fsepCode: "B.2.3",
@@ -148,6 +163,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Management of cleaning agents, lubricants, pesticides, and other non-food chemicals to prevent contamination of food, food contact surfaces, and packaging.",
     sfcrSection: "s.72–73",
+    sqfSection: "SQF 11.6.4",
   },
 
   // ── C. Conveyances and Equipment in the Establishment ────────────────────
@@ -158,6 +174,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Food contact equipment is designed, constructed, and installed to be cleanable, sanitary, and appropriate for its intended use.",
     sfcrSection: "s.53–55",
+    sqfSection: "SQF 11.1.6",
   },
   {
     fsepCode: "C.1.1",
@@ -166,6 +183,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Food contact equipment is designed and installed to be cleanable, sanitary, and appropriate for its intended use. Meets applicable food safety standards and minimizes contamination risks.",
     sfcrSection: "s.53–55",
+    sqfSection: "SQF 11.1.6",
   },
   {
     fsepCode: "C.2",
@@ -174,6 +192,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Preventive maintenance program for all equipment and a calibration program for measuring and monitoring devices critical to food safety.",
     sfcrSection: "s.53",
+    sqfSection: "SQF 11.2.1, 11.2.3",
   },
   {
     fsepCode: "C.2.1",
@@ -182,6 +201,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Scheduled preventive maintenance for all food safety-related equipment and a calibration program for thermometers, scales, metal detectors, and other critical instruments.",
     sfcrSection: "s.53",
+    sqfSection: "SQF 11.2.1, 11.2.3",
   },
 
   // ── D. Personnel ─────────────────────────────────────────────────────────
@@ -192,6 +212,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Documented training program ensuring all employees have the competencies required for their food safety responsibilities.",
     sfcrSection: "s.80",
+    sqfSection: "SQF 2.9.1",
   },
   {
     fsepCode: "D.1.1",
@@ -200,6 +221,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Training program ensuring all employees understand basic food hygiene principles and have job-specific technical skills for critical food safety functions.",
     sfcrSection: "s.80",
+    sqfSection: "SQF 2.9.1",
   },
   {
     fsepCode: "D.2",
@@ -208,6 +230,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Written policies and procedures for personal hygiene: hand washing, illness reporting, protective clothing, jewellery restrictions, eating/drinking/smoking prohibitions, and visitor controls.",
     sfcrSection: "s.76–79",
+    sqfSection: "SQF 11.3",
   },
   {
     fsepCode: "D.2.1",
@@ -216,6 +239,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Requirements for employee personal hygiene including handwashing procedures, protective clothing, and behavior in food handling areas.",
     sfcrSection: "s.76–79",
+    sqfSection: "SQF 11.3.2, 11.3.3",
   },
   {
     fsepCode: "D.2.2",
@@ -224,6 +248,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Policies for employees to report illness and procedures to prevent contamination from communicable diseases.",
     sfcrSection: "s.76–79",
+    sqfSection: "SQF 11.3.1",
   },
   {
     fsepCode: "D.2.3",
@@ -232,6 +257,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Controls governing visitors and contractors in food handling areas including hygiene requirements, sign-in procedures, and escorting rules.",
     sfcrSection: "s.76–79",
+    sqfSection: "SQF 11.3.4",
   },
 
   // ── E. Sanitation and Pest Control ───────────────────────────────────────
@@ -242,6 +268,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Master sanitation schedule covering all areas, equipment, and utensils. Includes cleaning frequency, methods, chemicals used (with SDS), concentrations, contact times, and verification procedures.",
     sfcrSection: "s.49–50, s.75",
+    sqfSection: "SQF 11.2.5",
   },
   {
     fsepCode: "E.1.1",
@@ -250,6 +277,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Standard operating procedures for cleaning and sanitizing all food contact and non-food contact surfaces, equipment, and utensils.",
     sfcrSection: "s.49–50, s.75",
+    sqfSection: "SQF 11.2.5",
   },
   {
     fsepCode: "E.1.2",
@@ -258,6 +286,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Inspection procedures conducted before production starts to verify sanitation is complete and equipment is fit for use.",
     sfcrSection: "s.75",
+    sqfSection: "SQF 11.2.5.8",
   },
   {
     fsepCode: "E.2",
@@ -266,6 +295,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Integrated pest management program covering prevention, monitoring, and control of insects, rodents, and birds. Includes approved pesticide list, application records, and third-party pest control documentation.",
     sfcrSection: "s.59, s.75",
+    sqfSection: "SQF 11.2.4",
   },
   {
     fsepCode: "E.2.1",
@@ -274,6 +304,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "SOPs for physical exclusion measures, monitoring devices, and chemical/biological elimination methods for pest control.",
     sfcrSection: "s.59, s.75",
+    sqfSection: "SQF 11.2.4",
   },
 
   // ── F. Recall System ─────────────────────────────────────────────────────
@@ -284,6 +315,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Documented product recall plan that enables rapid identification and withdrawal of affected product from the marketplace. Includes recall team contacts, traceability system, customer notification procedures, and mock recall program.",
     sfcrSection: "s.82–89",
+    sqfSection: "SQF 2.6.3",
   },
   {
     fsepCode: "F.1.1",
@@ -292,6 +324,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Record-keeping and product coding system that enables traceability of ingredients, packaging, and finished products one step back and one step forward through the supply chain.",
     sfcrSection: "s.82–85",
+    sqfSection: "SQF 2.6.1, 2.6.2",
   },
   {
     fsepCode: "F.1.2",
@@ -300,6 +333,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Procedures for investigating potential recalls, notifying customers and regulatory authorities, and managing the recall process.",
     sfcrSection: "s.86–89",
+    sqfSection: "SQF 2.6.3",
   },
   {
     fsepCode: "F.1.3",
@@ -308,6 +342,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Annual or periodic mock recall exercises to test the effectiveness of the recall system and traceability procedures.",
     sfcrSection: "s.86–89",
+    sqfSection: "SQF 2.6.3",
   },
 
   // ── G. Operational Prerequisite Programs ─────────────────────────────────
@@ -318,6 +353,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Program to prevent undeclared allergens and gluten in finished products. Includes ingredient control, production scheduling, dedicated equipment, label verification, and cleaning validation for allergen changeovers.",
     sfcrSection: "s.47",
+    sqfSection: "SQF 2.8.1",
   },
   {
     fsepCode: "G.1.1",
@@ -326,6 +362,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Procedures to prevent cross-contact of allergens including production scheduling, equipment segregation, cleaning between runs, and label review.",
     sfcrSection: "s.47",
+    sqfSection: "SQF 2.8.1",
   },
   {
     fsepCode: "G.2",
@@ -334,6 +371,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Program to prevent physical contamination of food products. Includes glass and brittle plastic policy, metal detection/X-ray procedures, wood control, and maintenance of food safety filters and screens.",
     sfcrSection: "s.47",
+    sqfSection: "SQF 11.7.3, 11.7.4",
   },
   {
     fsepCode: "G.2.1",
@@ -342,6 +380,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Specific controls for physical hazards including glass policy, metal detection, bone/shell controls, and equipment inspection programs.",
     sfcrSection: "s.47",
+    sqfSection: "SQF 11.7.3, 11.7.4",
   },
   {
     fsepCode: "G.3",
@@ -350,6 +389,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Operational controls for product-specific hazards not covered elsewhere, including processing environment controls and rework formulation controls.",
     sfcrSection: "s.47–48",
+    sqfSection: "SQF 2.4.6, 2.4.8",
   },
   {
     fsepCode: "G.3.1",
@@ -358,6 +398,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Environmental monitoring and control procedures specific to the processing environment to prevent contamination.",
     sfcrSection: "s.47–48",
+    sqfSection: "SQF 2.4.8",
   },
   {
     fsepCode: "G.3.2",
@@ -366,6 +407,7 @@ const FSEP_PROGRAMS: FsepProgram[] = [
     description:
       "Controls governing the use of rework in finished products to prevent allergen cross-contact, identity preservation issues, and unintended formulation changes.",
     sfcrSection: "s.47–48",
+    sqfSection: "SQF 2.4.6",
   },
 ] as const;
 
@@ -390,6 +432,7 @@ export async function POST() {
           prpType:      program.prpType,
           description:  program.description,
           sfcrSection:  program.sfcrSection,
+          sqfSection:   program.sqfSection,
         })
         .where(eq(prpMaster.id, record.id))
         .run();
@@ -403,6 +446,7 @@ export async function POST() {
           prpType:      program.prpType,
           fsepCode:     program.fsepCode,
           sfcrSection:  program.sfcrSection,
+          sqfSection:   program.sqfSection,
           description:  program.description,
           documentReference: null,
           documentUrl:  null,

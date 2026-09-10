@@ -158,6 +158,17 @@ export const REFERENCES: Reference[] = [
       "Informs the scope and content of PRP categories, particularly sanitation, pest control, and facility design programs.",
     url: "https://www.iso.org/standard/44001.html",
   },
+  {
+    id: "sqf-code-ed10",
+    category: "International Standards",
+    citation: "SQF Food Safety Code, Edition 10",
+    title: "SQF Food Safety Code: Food Manufacturing, Edition 10",
+    publisher: "Safe Quality Food Institute (SQFI) / FMI",
+    year: "2025",
+    description:
+      "GFSI-benchmarked standard used to cross-reference Module 2 (System Elements) and Module 11 (Good Manufacturing Practices) requirements against each Prerequisite Program.",
+    url: "https://www.sqfi.com/the-sqf-code/",
+  },
 
   // ── WHO / FAO Scientific Assessments ──────────────────────────────────────
 

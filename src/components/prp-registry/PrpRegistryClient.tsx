@@ -252,6 +252,11 @@ export function PrpRegistryClient({ initialRecords, linkCounts }: Props) {
                       SFCR {prp.sfcrSection}
                     </span>
                   )}
+                  {prp.sqfSection && (
+                    <span className="ml-1 text-[11px] font-mono text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                      {prp.sqfSection}
+                    </span>
+                  )}
                   {prp.description && (
                     <p className="text-xs text-neutral-500 mt-1 line-clamp-2">{prp.description}</p>
                   )}

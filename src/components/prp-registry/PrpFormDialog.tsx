@@ -23,61 +23,61 @@ import type { PrpMaster, DocumentSource } from "@/lib/types";
 
 // ── FSEP element options per category ────────────────────────────────────────
 
-const FSEP_ELEMENTS: Record<string, { code: string; name: string; sfcrSection: string }[]> = {
+const FSEP_ELEMENTS: Record<string, { code: string; name: string; sfcrSection: string; sqfSection: string }[]> = {
   A: [
-    { code: "A.1",   name: "A.1 — Outside Property",                       sfcrSection: "s.56, s.59"  },
-    { code: "A.2",   name: "A.2 — Inside Property",                        sfcrSection: "s.57–62"     },
-    { code: "A.2.1", name: "A.2.1 — Structural Design & Maintenance",       sfcrSection: "s.57–62"     },
-    { code: "A.2.2", name: "A.2.2 — Lighting",                             sfcrSection: "s.66"        },
-    { code: "A.2.3", name: "A.2.3 — Ventilation",                          sfcrSection: "s.67"        },
-    { code: "A.2.4", name: "A.2.4 — Waste Disposal & Drainage",            sfcrSection: "s.69–71"     },
-    { code: "A.3",   name: "A.3 — Sanitary Facilities",                    sfcrSection: "s.63–65"     },
-    { code: "A.3.1", name: "A.3.1 — Employee Amenities",                   sfcrSection: "s.63–65"     },
-    { code: "A.3.2", name: "A.3.2 — Handwash & Sanitizing Stations",       sfcrSection: "s.63–65"     },
-    { code: "A.4",   name: "A.4 — Water, Ice and Steam Quality",           sfcrSection: "s.68"        },
+    { code: "A.1",   name: "A.1 — Outside Property",                       sfcrSection: "s.56, s.59",  sqfSection: "SQF 11.1.7" },
+    { code: "A.2",   name: "A.2 — Inside Property",                        sfcrSection: "s.57–62",     sqfSection: "SQF 11.1.2" },
+    { code: "A.2.1", name: "A.2.1 — Structural Design & Maintenance",       sfcrSection: "s.57–62",     sqfSection: "SQF 11.1.2" },
+    { code: "A.2.2", name: "A.2.2 — Lighting",                             sfcrSection: "s.66",        sqfSection: "SQF 11.1.3" },
+    { code: "A.2.3", name: "A.2.3 — Ventilation",                          sfcrSection: "s.67",        sqfSection: "SQF 11.1.5" },
+    { code: "A.2.4", name: "A.2.4 — Waste Disposal & Drainage",            sfcrSection: "s.69–71",     sqfSection: "SQF 11.8.1" },
+    { code: "A.3",   name: "A.3 — Sanitary Facilities",                    sfcrSection: "s.63–65",     sqfSection: "SQF 11.3.5" },
+    { code: "A.3.1", name: "A.3.1 — Employee Amenities",                   sfcrSection: "s.63–65",     sqfSection: "SQF 11.3.5" },
+    { code: "A.3.2", name: "A.3.2 — Handwash & Sanitizing Stations",       sfcrSection: "s.63–65",     sqfSection: "SQF 11.3.2" },
+    { code: "A.4",   name: "A.4 — Water, Ice and Steam Quality",           sfcrSection: "s.68",        sqfSection: "SQF 11.5" },
   ],
   B: [
-    { code: "B.1",   name: "B.1 — Food Conveyances",                       sfcrSection: "s.49–52"     },
-    { code: "B.2",   name: "B.2 — Purchasing, Receiving and Storage",      sfcrSection: "s.72–74"     },
-    { code: "B.2.1", name: "B.2.1 — Purchasing, Receiving & Shipping",     sfcrSection: "s.72–74"     },
-    { code: "B.2.2", name: "B.2.2 — Storage",                              sfcrSection: "s.74"        },
-    { code: "B.2.3", name: "B.2.3 — Control of Non-Food Chemicals",        sfcrSection: "s.72–73"     },
+    { code: "B.1",   name: "B.1 — Food Conveyances",                       sfcrSection: "s.49–52",     sqfSection: "SQF 11.6.5" },
+    { code: "B.2",   name: "B.2 — Purchasing, Receiving and Storage",      sfcrSection: "s.72–74",     sqfSection: "SQF 2.3.4, 11.6.1" },
+    { code: "B.2.1", name: "B.2.1 — Purchasing, Receiving & Shipping",     sfcrSection: "s.72–74",     sqfSection: "SQF 2.3.4" },
+    { code: "B.2.2", name: "B.2.2 — Storage",                              sfcrSection: "s.74",        sqfSection: "SQF 11.6.1–11.6.3" },
+    { code: "B.2.3", name: "B.2.3 — Control of Non-Food Chemicals",        sfcrSection: "s.72–73",     sqfSection: "SQF 11.6.4" },
   ],
   C: [
-    { code: "C.1",   name: "C.1 — Equipment Design and Installation",      sfcrSection: "s.53–55"     },
-    { code: "C.1.1", name: "C.1.1 — Equipment Cleanability & Design",      sfcrSection: "s.53–55"     },
-    { code: "C.2",   name: "C.2 — Equipment Maintenance & Calibration",    sfcrSection: "s.53"        },
-    { code: "C.2.1", name: "C.2.1 — Preventive Maintenance & Calibration", sfcrSection: "s.53"        },
+    { code: "C.1",   name: "C.1 — Equipment Design and Installation",      sfcrSection: "s.53–55",     sqfSection: "SQF 11.1.6" },
+    { code: "C.1.1", name: "C.1.1 — Equipment Cleanability & Design",      sfcrSection: "s.53–55",     sqfSection: "SQF 11.1.6" },
+    { code: "C.2",   name: "C.2 — Equipment Maintenance & Calibration",    sfcrSection: "s.53",        sqfSection: "SQF 11.2.1, 11.2.3" },
+    { code: "C.2.1", name: "C.2.1 — Preventive Maintenance & Calibration", sfcrSection: "s.53",        sqfSection: "SQF 11.2.1, 11.2.3" },
   ],
   D: [
-    { code: "D.1",   name: "D.1 — Training",                               sfcrSection: "s.80"        },
-    { code: "D.1.1", name: "D.1.1 — Hygiene & Technical Training",         sfcrSection: "s.80"        },
-    { code: "D.2",   name: "D.2 — Hygiene and Health Requirements",        sfcrSection: "s.76–79"     },
-    { code: "D.2.1", name: "D.2.1 — Personal Cleanliness",                 sfcrSection: "s.76–79"     },
-    { code: "D.2.2", name: "D.2.2 — Communicable Diseases & Illness",      sfcrSection: "s.76–79"     },
-    { code: "D.2.3", name: "D.2.3 — Visitor & Contractor Controls",        sfcrSection: "s.76–79"     },
+    { code: "D.1",   name: "D.1 — Training",                               sfcrSection: "s.80",        sqfSection: "SQF 2.9.1" },
+    { code: "D.1.1", name: "D.1.1 — Hygiene & Technical Training",         sfcrSection: "s.80",        sqfSection: "SQF 2.9.1" },
+    { code: "D.2",   name: "D.2 — Hygiene and Health Requirements",        sfcrSection: "s.76–79",     sqfSection: "SQF 11.3" },
+    { code: "D.2.1", name: "D.2.1 — Personal Cleanliness",                 sfcrSection: "s.76–79",     sqfSection: "SQF 11.3.2, 11.3.3" },
+    { code: "D.2.2", name: "D.2.2 — Communicable Diseases & Illness",      sfcrSection: "s.76–79",     sqfSection: "SQF 11.3.1" },
+    { code: "D.2.3", name: "D.2.3 — Visitor & Contractor Controls",        sfcrSection: "s.76–79",     sqfSection: "SQF 11.3.4" },
   ],
   E: [
-    { code: "E.1",   name: "E.1 — Sanitation Program",                     sfcrSection: "s.49–50, s.75" },
-    { code: "E.1.1", name: "E.1.1 — Cleaning & Sanitizing SOPs",           sfcrSection: "s.49–50, s.75" },
-    { code: "E.1.2", name: "E.1.2 — Pre-Operational Inspections",          sfcrSection: "s.75"          },
-    { code: "E.2",   name: "E.2 — Pest Control Program",                   sfcrSection: "s.59, s.75"    },
-    { code: "E.2.1", name: "E.2.1 — Exclusion & Elimination SOPs",         sfcrSection: "s.59, s.75"    },
+    { code: "E.1",   name: "E.1 — Sanitation Program",                     sfcrSection: "s.49–50, s.75", sqfSection: "SQF 11.2.5" },
+    { code: "E.1.1", name: "E.1.1 — Cleaning & Sanitizing SOPs",           sfcrSection: "s.49–50, s.75", sqfSection: "SQF 11.2.5" },
+    { code: "E.1.2", name: "E.1.2 — Pre-Operational Inspections",          sfcrSection: "s.75",          sqfSection: "SQF 11.2.5.8" },
+    { code: "E.2",   name: "E.2 — Pest Control Program",                   sfcrSection: "s.59, s.75",    sqfSection: "SQF 11.2.4" },
+    { code: "E.2.1", name: "E.2.1 — Exclusion & Elimination SOPs",         sfcrSection: "s.59, s.75",    sqfSection: "SQF 11.2.4" },
   ],
   F: [
-    { code: "F.1",   name: "F.1 — Recall Plan",                            sfcrSection: "s.82–89"     },
-    { code: "F.1.1", name: "F.1.1 — Traceback & Product Codes",            sfcrSection: "s.82–85"     },
-    { code: "F.1.2", name: "F.1.2 — Recall Response Protocols",            sfcrSection: "s.86–89"     },
-    { code: "F.1.3", name: "F.1.3 — Mock Recalls",                         sfcrSection: "s.86–89"     },
+    { code: "F.1",   name: "F.1 — Recall Plan",                            sfcrSection: "s.82–89",     sqfSection: "SQF 2.6.3" },
+    { code: "F.1.1", name: "F.1.1 — Traceback & Product Codes",            sfcrSection: "s.82–85",     sqfSection: "SQF 2.6.1, 2.6.2" },
+    { code: "F.1.2", name: "F.1.2 — Recall Response Protocols",            sfcrSection: "s.86–89",     sqfSection: "SQF 2.6.3" },
+    { code: "F.1.3", name: "F.1.3 — Mock Recalls",                         sfcrSection: "s.86–89",     sqfSection: "SQF 2.6.3" },
   ],
   G: [
-    { code: "G.1",   name: "G.1 — Allergen Management Control",            sfcrSection: "s.47"        },
-    { code: "G.1.1", name: "G.1.1 — Cross-Contact Prevention",             sfcrSection: "s.47"        },
-    { code: "G.2",   name: "G.2 — Foreign Matter Control",                 sfcrSection: "s.47"        },
-    { code: "G.2.1", name: "G.2.1 — Physical Hazard Controls",             sfcrSection: "s.47"        },
-    { code: "G.3",   name: "G.3 — Other Product-Specific Controls",        sfcrSection: "s.47–48"     },
-    { code: "G.3.1", name: "G.3.1 — Processing Environment Controls",      sfcrSection: "s.47–48"     },
-    { code: "G.3.2", name: "G.3.2 — Rework Formulation Control",           sfcrSection: "s.47–48"     },
+    { code: "G.1",   name: "G.1 — Allergen Management Control",            sfcrSection: "s.47",        sqfSection: "SQF 2.8.1" },
+    { code: "G.1.1", name: "G.1.1 — Cross-Contact Prevention",             sfcrSection: "s.47",        sqfSection: "SQF 2.8.1" },
+    { code: "G.2",   name: "G.2 — Foreign Matter Control",                 sfcrSection: "s.47",        sqfSection: "SQF 11.7.3, 11.7.4" },
+    { code: "G.2.1", name: "G.2.1 — Physical Hazard Controls",             sfcrSection: "s.47",        sqfSection: "SQF 11.7.3, 11.7.4" },
+    { code: "G.3",   name: "G.3 — Other Product-Specific Controls",        sfcrSection: "s.47–48",     sqfSection: "SQF 2.4.6, 2.4.8" },
+    { code: "G.3.1", name: "G.3.1 — Processing Environment Controls",      sfcrSection: "s.47–48",     sqfSection: "SQF 2.4.8" },
+    { code: "G.3.2", name: "G.3.2 — Rework Formulation Control",           sfcrSection: "s.47–48",     sqfSection: "SQF 2.4.6" },
   ],
 };
 
@@ -93,6 +93,7 @@ interface FormState {
   prpType: string;
   fsepCode: string;
   sfcrSection: string;
+  sqfSection: string;
   description: string;
   documentReference: string;
   documentUrl: string;
@@ -109,6 +110,7 @@ function initForm(prp?: PrpMaster): FormState {
     prpType:           prp?.prpType           ?? "A",
     fsepCode:          prp?.fsepCode          ?? "",
     sfcrSection:       prp?.sfcrSection        ?? "",
+    sqfSection:        prp?.sqfSection         ?? "",
     description:       prp?.description       ?? "",
     documentReference: prp?.documentReference ?? "",
     documentUrl:       prp?.documentUrl       ?? "",
@@ -146,6 +148,7 @@ export function PrpFormDialog({ open, prp, onClose, onSaved }: Props) {
       if (field === "prpType" && value !== prev.prpType) {
         next.fsepCode = "";
         next.sfcrSection = "";
+        next.sqfSection = "";
       }
       return next;
     });
@@ -155,7 +158,7 @@ export function PrpFormDialog({ open, prp, onClose, onSaved }: Props) {
   function setElement(code: string) {
     if (code === "_custom") {
       setCustomMode(true);
-      setForm((prev) => ({ ...prev, fsepCode: "", sfcrSection: "" }));
+      setForm((prev) => ({ ...prev, fsepCode: "", sfcrSection: "", sqfSection: "" }));
       return;
     }
     setCustomMode(false);
@@ -164,6 +167,7 @@ export function PrpFormDialog({ open, prp, onClose, onSaved }: Props) {
       ...prev,
       fsepCode: code,
       sfcrSection: el?.sfcrSection ?? prev.sfcrSection,
+      sqfSection: el?.sqfSection ?? prev.sqfSection,
       programName: prev.programName.trim() === "" && el
         ? el.name.replace(/^[A-Z]\.\d[\d.]*\s*—\s*/, "")
         : prev.programName,
@@ -188,6 +192,7 @@ export function PrpFormDialog({ open, prp, onClose, onSaved }: Props) {
       prpType:           form.prpType,
       fsepCode:          form.fsepCode.trim()       || null,
       sfcrSection:       form.sfcrSection.trim()    || null,
+      sqfSection:        form.sqfSection.trim()     || null,
       description:       form.description.trim()    || null,
       documentReference: form.documentReference.trim() || null,
       documentUrl:       form.documentUrl.trim()    || null,
@@ -293,6 +298,23 @@ export function PrpFormDialog({ open, prp, onClose, onSaved }: Props) {
                 placeholder="e.g. s.56, s.59"
                 value={form.sfcrSection}
                 onChange={(e) => set("sfcrSection", e.target.value)}
+                readOnly={!customMode && matchesKnownCode}
+              />
+            </div>
+
+            {/* SQF section — auto-filled for FSEP, editable for custom */}
+            <div>
+              <Label className="text-xs">
+                SQF Code Reference (Edition 10)
+                {!customMode && matchesKnownCode && (
+                  <span className="ml-1 text-neutral-400 font-normal">(auto-filled from FSEP)</span>
+                )}
+              </Label>
+              <Input
+                className="mt-1 text-xs font-mono"
+                placeholder="e.g. SQF 11.2.5"
+                value={form.sqfSection}
+                onChange={(e) => set("sqfSection", e.target.value)}
                 readOnly={!customMode && matchesKnownCode}
               />
             </div>

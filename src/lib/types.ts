@@ -229,6 +229,7 @@ export interface PrpMaster {
   prpType: PrpType;              // FSEP main category (A–G)
   fsepCode: string | null;       // FSEP element code, e.g. "A.1", "E.2.1"
   sfcrSection: string | null;    // SFCR legal reference, e.g. "s.56, s.59"
+  sqfSection: string | null;     // SQF Code, Edition 10 element reference, e.g. "SQF 11.1.3"
   description: string | null;
   documentReference: string | null;
   documentUrl: string | null;
