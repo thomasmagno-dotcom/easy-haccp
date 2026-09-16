@@ -20,6 +20,7 @@ import { eq, asc, inArray } from "drizzle-orm";
 
 export interface HazardSummaryRow {
   flowChartName: string;
+  stepLabel: string;
   stepName: string;
   objectType: "Input" | "Step" | "Output";
   objectName: string;
@@ -239,8 +240,12 @@ export async function buildForms59Rows(planId: string): Promise<HazardSummaryRow
   // ── Build rows ──────────────────────────────────────────────────────────────
   const rows: HazardSummaryRow[] = [];
 
-  for (const { chart, steps } of chartStepRows) {
-    for (const step of steps) {
+  for (let chartIdx = 0; chartIdx < chartStepRows.length; chartIdx++) {
+    const { chart, steps } = chartStepRows[chartIdx];
+    const chartLetter = String.fromCharCode(65 + chartIdx);
+    for (let stepIdx = 0; stepIdx < steps.length; stepIdx++) {
+      const step = steps[stepIdx];
+      const stepLabel = `${chartLetter}${stepIdx + 1}`;
       // Inputs (subgraph)
       for (const inp of inputsByStepId.get(step.id) ?? []) {
         for (const subStep of subgraphByInputId.get(inp.id) ?? []) {
@@ -252,6 +257,7 @@ export async function buildForms59Rows(planId: string): Promise<HazardSummaryRow
             const prps = (prpsByHazardId.get(ish.hazardId) ?? []).map(formatPrp);
             rows.push({
               flowChartName: chart.name,
+              stepLabel,
               stepName: step.name,
               objectType: "Input",
               objectName: `${inp.name} — ${subStep.name}`,
@@ -282,6 +288,7 @@ export async function buildForms59Rows(planId: string): Promise<HazardSummaryRow
         const prps = (prpsByHazardId.get(sh.hazardId) ?? []).map(formatPrp);
         rows.push({
           flowChartName: chart.name,
+          stepLabel,
           stepName: step.name,
           objectType: "Step",
           objectName: step.name,
@@ -311,6 +318,7 @@ export async function buildForms59Rows(planId: string): Promise<HazardSummaryRow
           const prps = (prpsByHazardId.get(oh.hazardId) ?? []).map(formatPrp);
           rows.push({
             flowChartName: chart.name,
+            stepLabel,
             stepName: step.name,
             objectType: "Output",
             objectName: out.name,

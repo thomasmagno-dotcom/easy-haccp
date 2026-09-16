@@ -32,10 +32,10 @@ const BASE = { fontSize: 6.5, padding: 3 };
 // Columns — risk is split into two sub-groups: without controls and with controls
 const COLS = [
   { label: "1\nFlow Chart",           width: 55 },
-  { label: "2\nProcess Step",         width: 50 },
-  { label: "3\nInput/Step/Output",    width: 55 },
+  { label: "2\nProcess Step",         width: 48 },
+  { label: "3\nInput/Step/Output",    width: 62 },
   { label: "4\nHazard\nType",         width: 22 },
-  { label: "5\nHazard Description",   width: 85 },
+  { label: "5\nHazard Description",   width: 75 },
   // Without controls group
   { label: "6\nSeverity\n(No Ctrl)",  width: 34 },
   { label: "7\nLikelih.\n(No Ctrl)",  width: 34 },
@@ -45,11 +45,11 @@ const COLS = [
   { label: "10\nLikelih.\n(W/ Ctrl)", width: 34 },
   { label: "11\nRisk\n(W/ Ctrl)",     width: 28 },
   // Significance / CCP
-  { label: "12\nSignif.",             width: 30 },
-  { label: "13\nCCP Det.",            width: 30 },
-  { label: "14\nCCP #",              width: 24 },
-  { label: "15\nControl Measures",   width: 90 },
-  { label: "16\nPRP Reference(s)",   width: 90 },
+  { label: "12\nSignif.",             width: 28 },
+  { label: "13\nCCP Det.",            width: 34 },
+  { label: "14\nCCP #",              width: 34 },
+  { label: "15\nControl Measures",   width: 80 },
+  { label: "16\nPRP Reference(s)",   width: 80 },
 ];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -134,16 +134,15 @@ export function PdfForms59({ rows }: { rows: HazardSummaryRow[] }) {
             </Cell>
             {/* Col 2: Process Step */}
             <Cell width={COLS[1].width}>
+              <Text style={{ fontSize: 6.5, fontFamily: "Helvetica-Bold", color: "#1f2937" }}>{row.stepLabel}</Text>
               <Text style={{ ...BASE, color: "#374151" }}>{row.stepName}</Text>
             </Cell>
             {/* Col 3: Object */}
             <Cell width={COLS[2].width}>
-              <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "flex-start" }}>
-                <View style={{ backgroundColor: objCfg.bg, borderRadius: 2, paddingHorizontal: 3, paddingVertical: 1, marginRight: 3, marginBottom: 1 }}>
-                  <Text style={{ fontSize: 6, fontFamily: "Helvetica-Bold", color: objCfg.text }}>{row.objectType}</Text>
-                </View>
-                <Text style={{ ...BASE, color: "#374151", flex: 1 }}>{row.objectName}</Text>
+              <View style={{ backgroundColor: objCfg.bg, borderRadius: 2, paddingHorizontal: 3, paddingVertical: 1, alignSelf: "flex-start", marginBottom: 2 }}>
+                <Text style={{ fontSize: 6, fontFamily: "Helvetica-Bold", color: objCfg.text }}>{row.objectType}</Text>
               </View>
+              <Text style={{ ...BASE, color: "#374151" }}>{row.objectName}</Text>
             </Cell>
             {/* Col 4: Hazard Type */}
             <Cell width={COLS[3].width} style={{ alignItems: "center", justifyContent: "center" }}>

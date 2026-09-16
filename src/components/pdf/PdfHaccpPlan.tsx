@@ -332,9 +332,9 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
           <Text style={{ ...s.para, color: "#6b7280", fontStyle: "italic" }}>No published versions yet. This reflects the current working draft.</Text>
         ) : (
           <>
-            <Text style={s.h2}>Version History</Text>
+            <Text style={s.h2} minPresenceAhead={60}>Version History</Text>
             <View style={{ ...s.table, marginBottom: 16 }}>
-              <View style={s.tableHeaderRow}>
+              <View style={s.tableHeaderRow} wrap={false} minPresenceAhead={40}>
                 <Text style={{ ...s.th, width: 52 }}>Version</Text>
                 <Text style={{ ...s.th, width: 118 }}>Date &amp; Time</Text>
                 <Text style={{ ...s.th, width: 110 }}>Published By</Text>
@@ -415,9 +415,9 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
         ) : (
           groupIngredientsByCategory(ingredientsList).map((group, gi: number) => (
             <View key={gi} style={{ marginBottom: 12 }}>
-              <Text style={s.h2}>{group.label} ({group.items.length})</Text>
+              <Text style={s.h2} minPresenceAhead={60}>{group.label} ({group.items.length})</Text>
               <View style={s.table}>
-                <View style={s.tableHeaderRow}>
+                <View style={s.tableHeaderRow} wrap={false} minPresenceAhead={40}>
                   <Text style={{ ...s.th, flex: 1.4 }}>Name</Text>
                   <Text style={{ ...s.th, flex: 1 }}>Description</Text>
                   <Text style={{ ...s.th, width: 100 }}>Supplier</Text>
@@ -454,13 +454,13 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
         ) : (
           groupIngredientsByCategory(ingredientsList).map((group, gi: number) => (
             <View key={gi} style={{ marginBottom: 10 }}>
-              <Text style={s.h2}>{group.label}</Text>
+              <Text style={s.h2} minPresenceAhead={60}>{group.label}</Text>
               {group.items.map((ing: Record<string, any>, i: number) => {
                 const ingHazards = (ing.hazards as any[]) || [];
                 const sigHazards = ingHazards.filter((h: any) => h.isSignificant);
                 return (
                   <View key={i} style={{ marginBottom: 10 }}>
-                    <View minPresenceAhead={30} style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#f5f5f5", borderRadius: 4, padding: 6, borderWidth: 1, borderColor: "#e5e7eb", marginBottom: 2 }}>
+                    <View wrap={false} minPresenceAhead={30} style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#f5f5f5", borderRadius: 4, padding: 6, borderWidth: 1, borderColor: "#e5e7eb", marginBottom: 2 }}>
                       <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 9, flex: 1 }}>{ing.name as string}</Text>
                       {ing.supplier && <Text style={{ fontSize: 7, color: "#9ca3af" }}>Supplier: {ing.supplier as string}</Text>}
                     </View>
@@ -857,7 +857,7 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
             {/* ── Hazard Identification Table ── */}
             <Text style={s.h2} minPresenceAhead={60}>Hazard Identification &amp; Risk Assessment</Text>
             <View style={s.table}>
-              <View style={s.tableHeaderRow} wrap={false}>
+              <View style={s.tableHeaderRow} wrap={false} minPresenceAhead={40}>
                 <Text style={{ ...s.th, width: 22 }}>Type</Text>
                 <Text style={{ ...s.th, width: 120 }}>Hazard</Text>
                 <Text style={{ ...s.th, width: 35 }}>Sev.</Text>
@@ -947,7 +947,7 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
               <>
                 <Text style={s.h2} minPresenceAhead={60}>Linked Prerequisite Programs (PRPs)</Text>
                 <View style={s.table}>
-                  <View style={s.tableHeaderRow} wrap={false}>
+                  <View style={s.tableHeaderRow} wrap={false} minPresenceAhead={40}>
                     <Text style={{ ...s.th, width: 50 }}>FSEP Code</Text>
                     <Text style={{ ...s.th, width: 140 }}>Hazard</Text>
                     <Text style={{ ...s.th, flex: 1 }}>PRP Program</Text>
@@ -1096,9 +1096,9 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
             <Text style={{ fontSize: 8, color: "#6b7280", marginBottom: 2 }}>
               Process Step: {step.name as string}  ·  Input: {input.name as string}
             </Text>
-            <Text style={s.h2}>{subStep.name as string}</Text>
+            <Text style={s.h2} minPresenceAhead={60}>{subStep.name as string}</Text>
             <View style={s.table}>
-              <View style={s.tableHeaderRow}>
+              <View style={s.tableHeaderRow} wrap={false} minPresenceAhead={40}>
                 <Text style={{ ...s.th, width: 22 }}>Type</Text>
                 <Text style={{ ...s.th, width: 120 }}>Hazard</Text>
                 <Text style={{ ...s.th, width: 28 }}>Sev.</Text>
@@ -1190,7 +1190,7 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
                     {out.isCcp && <Text style={{ fontSize: 7, fontFamily: "Helvetica-Bold", color: "#dc2626", marginLeft: 6 }}>{out.ccpNumber || "CCP"}</Text>}
                   </View>
                   <View style={s.table}>
-                    <View style={s.tableHeaderRow}>
+                    <View style={s.tableHeaderRow} wrap={false} minPresenceAhead={40}>
                       <Text style={{ ...s.th, width: 22 }}>Type</Text>
                       <Text style={{ ...s.th, width: 120 }}>Hazard</Text>
                       <Text style={{ ...s.th, width: 28 }}>Sev.</Text>
@@ -1327,7 +1327,7 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
           <Text style={s.para}>No team members recorded.</Text>
         ) : (
           <View style={s.table}>
-            <View style={s.tableHeaderRow}>
+            <View style={s.tableHeaderRow} wrap={false} minPresenceAhead={40}>
               {["Name", "Title", "Role", "Qualifications"].map((h) => (
                 <Text key={h} style={{ ...s.th, flex: 1 }}>{h}</Text>
               ))}
