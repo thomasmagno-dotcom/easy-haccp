@@ -202,6 +202,46 @@ function PdfHazardTypeBadges({ types }: { types: string[] }) {
   );
 }
 
+const INGREDIENT_CATEGORY_ORDER = [
+  "raw-material",
+  "packaging",
+  "water",
+  "additive",
+  "processing-aid",
+  "chemical",
+  "other",
+];
+
+const INGREDIENT_CATEGORY_LABELS: Record<string, string> = {
+  "raw-material": "Raw Material",
+  "packaging": "Packaging",
+  "water": "Water",
+  "additive": "Additive",
+  "processing-aid": "Processing Aid",
+  "chemical": "Chemical",
+  "other": "Other",
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function groupIngredientsByCategory(ingredientsList: any[]): Array<{ category: string; label: string; items: any[] }> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const byCategory: Record<string, any[]> = {};
+  for (const ing of ingredientsList) {
+    const cat = (ing.category as string) || "other";
+    if (!byCategory[cat]) byCategory[cat] = [];
+    byCategory[cat].push(ing);
+  }
+  const orderedKeys = [
+    ...INGREDIENT_CATEGORY_ORDER.filter((c) => byCategory[c]),
+    ...Object.keys(byCategory).filter((c) => !INGREDIENT_CATEGORY_ORDER.includes(c)),
+  ];
+  return orderedKeys.map((cat) => ({
+    category: cat,
+    label: INGREDIENT_CATEGORY_LABELS[cat] || cat.replace(/-/g, " "),
+    items: byCategory[cat],
+  }));
+}
+
 const FLOW_CHART_TYPE_LABELS: Record<string, string> = {
   main_process:        "Main Process",
   byproduct:           "By-Product Stream",
@@ -367,63 +407,106 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
         <PageFooter {...footerProps} />
       </Page>
 
-      {/* ── Form 2: Ingredients ─────────────────────────────────────────────── */}
+      {/* ── Form 2 Summary: Incoming Ingredients & Materials by Category ────── */}
       <Page size="LETTER" style={s.page}>
-        <Text style={s.h1}>Form 2: Ingredients &amp; Incoming Materials</Text>
+        <Text style={s.h1}>Form 2: Incoming Ingredients &amp; Materials — Summary</Text>
         {ingredientsList.length === 0 ? (
           <Text style={s.para}>No ingredients recorded.</Text>
         ) : (
-          ingredientsList.map((ing: Record<string, any>, i: number) => {
-            const ingHazards = (ing.hazards as any[]) || [];
-            const sigHazards = ingHazards.filter((h: any) => h.isSignificant);
-            return (
-              <View key={i} style={{ marginBottom: 10 }}>
-                <View minPresenceAhead={30} style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#f5f5f5", borderRadius: 4, padding: 6, borderWidth: 1, borderColor: "#e5e7eb", marginBottom: 2 }}>
-                  <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 9, flex: 1 }}>{ing.name as string}</Text>
-                  {ing.category && <Text style={{ fontSize: 7, color: "#6b7280", marginRight: 8 }}>{(ing.category as string).replace(/-/g, " ")}</Text>}
-                  {ing.supplier && <Text style={{ fontSize: 7, color: "#9ca3af" }}>Supplier: {ing.supplier as string}</Text>}
+          groupIngredientsByCategory(ingredientsList).map((group, gi: number) => (
+            <View key={gi} style={{ marginBottom: 12 }}>
+              <Text style={s.h2}>{group.label} ({group.items.length})</Text>
+              <View style={s.table}>
+                <View style={s.tableHeaderRow}>
+                  <Text style={{ ...s.th, flex: 1.4 }}>Name</Text>
+                  <Text style={{ ...s.th, flex: 1 }}>Description</Text>
+                  <Text style={{ ...s.th, width: 100 }}>Supplier</Text>
+                  <Text style={{ ...s.th, width: 44, textAlign: "center" }}>Hazards</Text>
+                  <Text style={{ ...s.th, width: 52, textAlign: "center" }}>Significant</Text>
                 </View>
-                {ingHazards.length === 0 ? (
-                  <Text style={{ fontSize: 7, color: "#9ca3af", marginLeft: 4, fontStyle: "italic" }}>No hazards assigned.</Text>
-                ) : (
-                  ingHazards.map((ih: Record<string, any>, j: number) => {
-                    const hazard = ih.hazard as Record<string, any>;
-                    const sev = (ih.severityOverride || hazard.severity || "") as string;
-                    const lik = (ih.likelihoodOverride || hazard.likelihood || "") as string;
-                    const score = (parseInt(sev) || 0) * (parseInt(lik) || 0);
-                    const cms = (ih.controlMeasures as any[]) || [];
-                    return (
-                      <View key={j} wrap={false} style={{ marginLeft: 4, marginBottom: 4, borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 3 }}>
-                        <View style={{ ...s.tableRow, backgroundColor: "#f9fafb", borderBottomWidth: cms.length > 0 ? 1 : 0 }}>
-                          <Text style={{ ...s.td, width: 20 }}>{((hazard.type as string) || "").charAt(0).toUpperCase()}</Text>
-                          <Text style={{ ...s.td, flex: 1, fontFamily: "Helvetica-Bold" }}>{hazard.name as string}</Text>
-                          <Text style={{ ...s.td, width: 32 }}>S:{sev || "—"}</Text>
-                          <Text style={{ ...s.td, width: 32 }}>L:{lik || "—"}</Text>
-                          <Text style={{ ...s.td, width: 30 }}>R:{score > 0 ? score : "—"}</Text>
-                          <Text style={{ ...s.td, width: 28 }}>{ih.isSignificant ? "⚠ Sig" : "OK"}</Text>
-                          <Text style={{ ...s.td, flex: 1, color: "#6b7280" }}>{(ih.justification || "—") as string}</Text>
-                        </View>
-                        {cms.length > 0 && (
-                          <View style={{ paddingHorizontal: 6, paddingVertical: 3 }}>
-                            {cms.map((cm: Record<string, any>, k: number) => (
-                              <Text key={k} style={{ fontSize: 7, color: "#374151", marginBottom: 1 }}>
-                                • [{((cm.type as string) || "preventive")}] {cm.description as string}
-                              </Text>
-                            ))}
-                          </View>
-                        )}
-                      </View>
-                    );
-                  })
-                )}
-                {sigHazards.length > 0 && (
-                  <Text style={{ fontSize: 7, color: "#dc2626", marginLeft: 4, marginTop: 2 }}>
-                    ⚠ {sigHazards.length} significant hazard{sigHazards.length > 1 ? "s" : ""} identified
-                  </Text>
-                )}
+                {group.items.map((ing: Record<string, any>, i: number) => {
+                  const ingHazards = (ing.hazards as any[]) || [];
+                  const sigCount = ingHazards.filter((h: any) => h.isSignificant).length;
+                  return (
+                    <View key={i} wrap={false} style={s.tableRow}>
+                      <Text style={{ ...s.td, flex: 1.4, fontFamily: "Helvetica-Bold" }}>{ing.name as string}</Text>
+                      <Text style={{ ...s.td, flex: 1, color: "#6b7280" }}>{(ing.description as string) || "—"}</Text>
+                      <Text style={{ ...s.td, width: 100, color: "#6b7280" }}>{(ing.supplier as string) || "—"}</Text>
+                      <Text style={{ ...s.td, width: 44, textAlign: "center" }}>{ingHazards.length || "—"}</Text>
+                      <Text style={{ ...s.td, width: 52, textAlign: "center", color: sigCount > 0 ? "#dc2626" : "#9ca3af", fontFamily: sigCount > 0 ? "Helvetica-Bold" : "Helvetica" }}>
+                        {sigCount > 0 ? sigCount : "—"}
+                      </Text>
+                    </View>
+                  );
+                })}
               </View>
-            );
-          })
+            </View>
+          ))
+        )}
+        <PageFooter {...footerProps} />
+      </Page>
+
+      {/* ── Form 2 (continued): Ingredient Hazard Analysis ──────────────────── */}
+      <Page size="LETTER" style={s.page}>
+        <Text style={s.h1}>Form 2 (continued): Ingredient Hazard Analysis</Text>
+        {ingredientsList.length === 0 ? (
+          <Text style={s.para}>No ingredients recorded.</Text>
+        ) : (
+          groupIngredientsByCategory(ingredientsList).map((group, gi: number) => (
+            <View key={gi} style={{ marginBottom: 10 }}>
+              <Text style={s.h2}>{group.label}</Text>
+              {group.items.map((ing: Record<string, any>, i: number) => {
+                const ingHazards = (ing.hazards as any[]) || [];
+                const sigHazards = ingHazards.filter((h: any) => h.isSignificant);
+                return (
+                  <View key={i} style={{ marginBottom: 10 }}>
+                    <View minPresenceAhead={30} style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#f5f5f5", borderRadius: 4, padding: 6, borderWidth: 1, borderColor: "#e5e7eb", marginBottom: 2 }}>
+                      <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 9, flex: 1 }}>{ing.name as string}</Text>
+                      {ing.supplier && <Text style={{ fontSize: 7, color: "#9ca3af" }}>Supplier: {ing.supplier as string}</Text>}
+                    </View>
+                    {ingHazards.length === 0 ? (
+                      <Text style={{ fontSize: 7, color: "#9ca3af", marginLeft: 4, fontStyle: "italic" }}>No hazards assigned.</Text>
+                    ) : (
+                      ingHazards.map((ih: Record<string, any>, j: number) => {
+                        const hazard = ih.hazard as Record<string, any>;
+                        const sev = (ih.severityOverride || hazard.severity || "") as string;
+                        const lik = (ih.likelihoodOverride || hazard.likelihood || "") as string;
+                        const score = (parseInt(sev) || 0) * (parseInt(lik) || 0);
+                        const cms = (ih.controlMeasures as any[]) || [];
+                        return (
+                          <View key={j} wrap={false} style={{ marginLeft: 4, marginBottom: 4, borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 3 }}>
+                            <View style={{ ...s.tableRow, backgroundColor: "#f9fafb", borderBottomWidth: cms.length > 0 ? 1 : 0 }}>
+                              <Text style={{ ...s.td, width: 20 }}>{((hazard.type as string) || "").charAt(0).toUpperCase()}</Text>
+                              <Text style={{ ...s.td, flex: 1, fontFamily: "Helvetica-Bold" }}>{hazard.name as string}</Text>
+                              <Text style={{ ...s.td, width: 32 }}>S:{sev || "—"}</Text>
+                              <Text style={{ ...s.td, width: 32 }}>L:{lik || "—"}</Text>
+                              <Text style={{ ...s.td, width: 30 }}>R:{score > 0 ? score : "—"}</Text>
+                              <Text style={{ ...s.td, width: 28 }}>{ih.isSignificant ? "⚠ Sig" : "OK"}</Text>
+                              <Text style={{ ...s.td, flex: 1, color: "#6b7280" }}>{(ih.justification || "—") as string}</Text>
+                            </View>
+                            {cms.length > 0 && (
+                              <View style={{ paddingHorizontal: 6, paddingVertical: 3 }}>
+                                {cms.map((cm: Record<string, any>, k: number) => (
+                                  <Text key={k} style={{ fontSize: 7, color: "#374151", marginBottom: 1 }}>
+                                    • [{((cm.type as string) || "preventive")}] {cm.description as string}
+                                  </Text>
+                                ))}
+                              </View>
+                            )}
+                          </View>
+                        );
+                      })
+                    )}
+                    {sigHazards.length > 0 && (
+                      <Text style={{ fontSize: 7, color: "#dc2626", marginLeft: 4, marginTop: 2 }}>
+                        ⚠ {sigHazards.length} significant hazard{sigHazards.length > 1 ? "s" : ""} identified
+                      </Text>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+          ))
         )}
         <PageFooter {...footerProps} />
       </Page>
