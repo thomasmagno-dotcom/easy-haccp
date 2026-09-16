@@ -86,7 +86,7 @@ export function PdfForms59({ rows }: { rows: HazardSummaryRow[] }) {
   return (
     <View style={{ borderWidth: 1, borderColor: "#d1d5db" }}>
       {/* Group headers */}
-      <View style={{ flexDirection: "row", backgroundColor: "#e9ecef", borderBottomWidth: 1, borderBottomColor: "#9ca3af" }}>
+      <View wrap={false} style={{ flexDirection: "row", backgroundColor: "#e9ecef", borderBottomWidth: 1, borderBottomColor: "#9ca3af" }}>
         {/* Empty spacer for cols 1-5 */}
         <View style={{ width: COLS[0].width + COLS[1].width + COLS[2].width + COLS[3].width + COLS[4].width, borderRightWidth: 1, borderRightColor: "#9ca3af" }} />
         {/* Without controls */}
@@ -102,7 +102,7 @@ export function PdfForms59({ rows }: { rows: HazardSummaryRow[] }) {
       </View>
 
       {/* Column headers */}
-      <View style={{ flexDirection: "row", backgroundColor: "#f3f4f6", borderBottomWidth: 1, borderBottomColor: "#9ca3af" }}>
+      <View wrap={false} style={{ flexDirection: "row", backgroundColor: "#f3f4f6", borderBottomWidth: 1, borderBottomColor: "#9ca3af" }}>
         {COLS.map((col) => (
           <Cell key={col.label} width={col.width}>
             <Text style={{ fontSize: 6.5, fontFamily: "Helvetica-Bold", color: "#374151" }}>

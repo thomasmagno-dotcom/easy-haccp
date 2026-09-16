@@ -114,7 +114,7 @@ function DecisionTreeBlock({ hazardName, dtJson }: { hazardName: string; dtJson:
   if (answeredCount === 0) return null;
 
   return (
-    <View style={{ marginBottom: 6, borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 3, overflow: "hidden" }}>
+    <View wrap={false} style={{ marginBottom: 6, borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 3, overflow: "hidden" }}>
       <View style={{ backgroundColor: "#fafafa", paddingHorizontal: 6, paddingVertical: 3, borderBottomWidth: 1, borderBottomColor: "#e5e7eb" }}>
         <Text style={{ fontSize: 7.5, fontFamily: "Helvetica-Bold", color: "#374151" }}>
           Decision Tree — Codex CXC 1-1969 Rev. 2020: {hazardName}
@@ -302,7 +302,7 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
                 <Text style={{ ...s.th, width: 40, textAlign: "center" }}>Changes</Text>
               </View>
               {allVersions.map((v: any, i: number) => (
-                <View key={i} style={{ ...s.tableRow, backgroundColor: i === 0 ? "#f0fdf4" : "transparent" }}>
+                <View key={i} wrap={false} style={{ ...s.tableRow, backgroundColor: i === 0 ? "#f0fdf4" : "transparent" }}>
                   <Text style={{ ...s.td, width: 52, fontFamily: "Helvetica-Bold" }}>v{v.versionNumber}{i === 0 ? " ★" : ""}</Text>
                   <Text style={{ ...s.td, width: 118 }}>{fmtDateTime(v.publishedAt)}</Text>
                   <Text style={{ ...s.td, width: 110 }}>{v.publishedBy || "—"}</Text>
@@ -378,7 +378,7 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
             const sigHazards = ingHazards.filter((h: any) => h.isSignificant);
             return (
               <View key={i} style={{ marginBottom: 10 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#f5f5f5", borderRadius: 4, padding: 6, borderWidth: 1, borderColor: "#e5e7eb", marginBottom: 2 }}>
+                <View minPresenceAhead={30} style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#f5f5f5", borderRadius: 4, padding: 6, borderWidth: 1, borderColor: "#e5e7eb", marginBottom: 2 }}>
                   <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 9, flex: 1 }}>{ing.name as string}</Text>
                   {ing.category && <Text style={{ fontSize: 7, color: "#6b7280", marginRight: 8 }}>{(ing.category as string).replace(/-/g, " ")}</Text>}
                   {ing.supplier && <Text style={{ fontSize: 7, color: "#9ca3af" }}>Supplier: {ing.supplier as string}</Text>}
@@ -393,7 +393,7 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
                     const score = (parseInt(sev) || 0) * (parseInt(lik) || 0);
                     const cms = (ih.controlMeasures as any[]) || [];
                     return (
-                      <View key={j} style={{ marginLeft: 4, marginBottom: 4, borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 3 }}>
+                      <View key={j} wrap={false} style={{ marginLeft: 4, marginBottom: 4, borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 3 }}>
                         <View style={{ ...s.tableRow, backgroundColor: "#f9fafb", borderBottomWidth: cms.length > 0 ? 1 : 0 }}>
                           <Text style={{ ...s.td, width: 20 }}>{((hazard.type as string) || "").charAt(0).toUpperCase()}</Text>
                           <Text style={{ ...s.td, flex: 1, fontFamily: "Helvetica-Bold" }}>{hazard.name as string}</Text>
@@ -494,7 +494,7 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
                 const numTextColor = isCcp ? "#ffffff" : "#1a1a1a";
 
                 return (
-                  <View key={i}>
+                  <View key={i} wrap={false}>
                     {/* ── Three-column step row ── */}
                     <View style={{ flexDirection: "row", alignItems: "stretch", minHeight: 40 }}>
 
@@ -772,9 +772,9 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
             {step.description && <Text style={s.para}>{step.description as string}</Text>}
 
             {/* ── Hazard Identification Table ── */}
-            <Text style={s.h2}>Hazard Identification &amp; Risk Assessment</Text>
+            <Text style={s.h2} minPresenceAhead={60}>Hazard Identification &amp; Risk Assessment</Text>
             <View style={s.table}>
-              <View style={s.tableHeaderRow}>
+              <View style={s.tableHeaderRow} wrap={false}>
                 <Text style={{ ...s.th, width: 22 }}>Type</Text>
                 <Text style={{ ...s.th, width: 120 }}>Hazard</Text>
                 <Text style={{ ...s.th, width: 35 }}>Sev.</Text>
@@ -790,7 +790,7 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
                 const score = (parseInt(sev) || 0) * (parseInt(lik) || 0);
                 const isSignificant = !!sh.isSignificant;
                 return (
-                  <View key={j} style={{ ...s.tableRow, backgroundColor: isSignificant ? "#fff7ed" : "transparent" }}>
+                  <View key={j} wrap={false} style={{ ...s.tableRow, backgroundColor: isSignificant ? "#fff7ed" : "transparent" }}>
                     <Text style={{ ...s.td, width: 22 }}>{((hazard.type as string) || "").charAt(0).toUpperCase()}</Text>
                     <Text style={{ ...s.td, width: 120, fontFamily: isSignificant ? "Helvetica-Bold" : "Helvetica" }}>{hazard.name as string}</Text>
                     <Text style={{ ...s.td, width: 35 }}>{sev || "—"}</Text>
@@ -808,14 +808,14 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
             {/* ── Control Measures ── */}
             {stepHazardList.some((sh: any) => ((sh.controlMeasures as any[]) || []).length > 0) && (
               <>
-                <Text style={s.h2}>Control Measures</Text>
+                <Text style={s.h2} minPresenceAhead={60}>Control Measures</Text>
                 {stepHazardList
                   .filter((sh: any) => ((sh.controlMeasures as any[]) || []).length > 0)
                   .map((sh: Record<string, any>, j: number) => {
                     const hazard = sh.hazard as Record<string, any>;
                     const cms = (sh.controlMeasures as any[]) || [];
                     return (
-                      <View key={j} style={{ marginBottom: 6, borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 3, overflow: "hidden" }}>
+                      <View key={j} wrap={false} style={{ marginBottom: 6, borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 3, overflow: "hidden" }}>
                         <View style={{ backgroundColor: "#f9fafb", paddingHorizontal: 6, paddingVertical: 3, borderBottomWidth: 1, borderBottomColor: "#e5e7eb" }}>
                           <Text style={{ fontSize: 8, fontFamily: "Helvetica-Bold", color: "#374151" }}>
                             {((hazard.type as string) || "").charAt(0).toUpperCase()} — {hazard.name as string}
@@ -843,7 +843,7 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
             {/* ── Decision Tree (significant hazards only) ── */}
             {significantHazards.length > 0 && (
               <>
-                <Text style={s.h2}>CCP Decision Tree — Codex CXC 1-1969 Rev. 2020</Text>
+                <Text style={s.h2} minPresenceAhead={60}>CCP Decision Tree — Codex CXC 1-1969 Rev. 2020</Text>
                 <View style={{ marginBottom: 6, flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
                   {["Q1: Controlled by GHPs/PRPs?", "Q2: Control measures exist here?", "Q3: Subsequent step controls it?", "Q4: This step can control it?"].map((q, qi) => (
                     <Text key={qi} style={{ fontSize: 7, color: "#6b7280" }}>{q}</Text>
@@ -862,9 +862,9 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
             {/* ── Linked PRPs ── */}
             {stepHazardList.some((sh: any) => ((sh.linkedPrps as any[]) || []).length > 0) && (
               <>
-                <Text style={s.h2}>Linked Prerequisite Programs (PRPs)</Text>
+                <Text style={s.h2} minPresenceAhead={60}>Linked Prerequisite Programs (PRPs)</Text>
                 <View style={s.table}>
-                  <View style={s.tableHeaderRow}>
+                  <View style={s.tableHeaderRow} wrap={false}>
                     <Text style={{ ...s.th, width: 50 }}>FSEP Code</Text>
                     <Text style={{ ...s.th, width: 140 }}>Hazard</Text>
                     <Text style={{ ...s.th, flex: 1 }}>PRP Program</Text>
@@ -881,7 +881,7 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
                       })),
                     )
                     .map(({ hazardName, prp, key }: { hazardName: string; prp: Record<string, any>; key: string }) => (
-                      <View key={key} style={s.tableRow}>
+                      <View key={key} wrap={false} style={s.tableRow}>
                         <Text style={{ ...s.td, width: 50, fontFamily: "Helvetica-Bold", color: "#374151" }}>{(prp.fsepCode || prp.prpType) as string}</Text>
                         <Text style={{ ...s.td, width: 140 }}>{hazardName}</Text>
                         <Text style={{ ...s.td, flex: 1 }}>{prp.programName as string}</Text>
@@ -902,11 +902,11 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
               const verification = (ccp.verificationProcedures as any[]) || [];
               return (
                 <View>
-                  <Text style={s.h2}>CCP Details — {step.ccpNumber as string}</Text>
+                  <Text style={s.h2} minPresenceAhead={60}>CCP Details — {step.ccpNumber as string}</Text>
                   <View style={s.fieldRow}><Text style={s.fieldLabel}>Hazard(s) Controlled:</Text><Text style={s.fieldValue}>{ccp.hazardDescription as string}</Text></View>
                   <View style={s.fieldRow}><Text style={s.fieldLabel}>Control Measure:</Text><Text style={s.fieldValue}>{ccp.controlMeasureDescription as string}</Text></View>
                   {limits.length > 0 && (
-                    <>
+                    <View wrap={false}>
                       <Text style={s.h3}>Critical Limits</Text>
                       <View style={s.table}>
                         <View style={s.tableHeaderRow}>
@@ -925,10 +925,10 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
                           </View>
                         ))}
                       </View>
-                    </>
+                    </View>
                   )}
                   {monitoring.length > 0 && (
-                    <>
+                    <View wrap={false}>
                       <Text style={s.h3}>Monitoring Procedures</Text>
                       <View style={s.table}>
                         <View style={s.tableHeaderRow}>
@@ -946,13 +946,13 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
                           </View>
                         ))}
                       </View>
-                    </>
+                    </View>
                   )}
                   {corrective.length > 0 && (
                     <>
-                      <Text style={s.h3}>Corrective Actions</Text>
+                      <Text style={s.h3} minPresenceAhead={40}>Corrective Actions</Text>
                       {corrective.map((c: Record<string, any>, k: number) => (
-                        <View key={k} style={{ marginBottom: 4, borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 3, padding: 5 }}>
+                        <View key={k} wrap={false} style={{ marginBottom: 4, borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 3, padding: 5 }}>
                           <View style={s.fieldRow}><Text style={{ ...s.fieldLabel, width: 100 }}>Deviation:</Text><Text style={s.fieldValue}>{c.deviation as string}</Text></View>
                           <View style={s.fieldRow}><Text style={{ ...s.fieldLabel, width: 100 }}>Immediate Action:</Text><Text style={s.fieldValue}>{c.immediateAction as string}</Text></View>
                           <View style={s.fieldRow}><Text style={{ ...s.fieldLabel, width: 100 }}>Product Disposition:</Text><Text style={s.fieldValue}>{c.productDisposition as string}</Text></View>
@@ -962,7 +962,7 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
                     </>
                   )}
                   {verification.length > 0 && (
-                    <>
+                    <View wrap={false}>
                       <Text style={s.h3}>Verification Procedures</Text>
                       <View style={s.table}>
                         <View style={s.tableHeaderRow}>
@@ -980,7 +980,7 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
                           </View>
                         ))}
                       </View>
-                    </>
+                    </View>
                   )}
                 </View>
               );
@@ -1036,7 +1036,7 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
                 const dtResult = dtRaw?.result ?? null;
                 const DT_LABELS: Record<string, string> = { ccp:"CCP", not_ccp:"Not CCP", prp:"GHP/PRP", modify:"Modify" };
                 return (
-                  <View key={ji} style={{ ...s.tableRow, backgroundColor: sh.isSignificant ? "#fff7ed" : "transparent" }}>
+                  <View key={ji} wrap={false} style={{ ...s.tableRow, backgroundColor: sh.isSignificant ? "#fff7ed" : "transparent" }}>
                     <Text style={{ ...s.td, width: 22 }}>{((hazard.type as string)||"").charAt(0).toUpperCase()}</Text>
                     <Text style={{ ...s.td, width: 120, fontFamily: sh.isSignificant ? "Helvetica-Bold" : "Helvetica" }}>{hazard.name as string}</Text>
                     <Text style={{ ...s.td, width: 28 }}>{sev || "—"}</Text>
@@ -1101,7 +1101,7 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
               const outHazards: any[] = out.hazards ?? [];
               return (
                 <View key={oi} style={{ marginBottom: 12 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#f0fdfa", borderWidth: 1, borderColor: "#99f6e4", borderRadius: 3, paddingHorizontal: 6, paddingVertical: 3, marginBottom: 4 }}>
+                  <View minPresenceAhead={40} style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#f0fdfa", borderWidth: 1, borderColor: "#99f6e4", borderRadius: 3, paddingHorizontal: 6, paddingVertical: 3, marginBottom: 4 }}>
                     <Text style={{ fontSize: 8, fontFamily: "Helvetica-Bold", flex: 1 }}>{out.name as string}</Text>
                     <Text style={{ fontSize: 7, color: "#6b7280" }}>{(out.outputType as string).replace(/_/g," ")}</Text>
                     {out.isCcp && <Text style={{ fontSize: 7, fontFamily: "Helvetica-Bold", color: "#dc2626", marginLeft: 6 }}>{out.ccpNumber || "CCP"}</Text>}
@@ -1124,7 +1124,7 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
                       const likNum = parseInt(lik, 10);
                       const score = !isNaN(sevNum) && !isNaN(likNum) ? sevNum * likNum : 0;
                       return (
-                        <View key={ji} style={{ ...s.tableRow, backgroundColor: oh.isSignificant ? "#fff7ed" : "transparent" }}>
+                        <View key={ji} wrap={false} style={{ ...s.tableRow, backgroundColor: oh.isSignificant ? "#fff7ed" : "transparent" }}>
                           <Text style={{ ...s.td, width: 22 }}>{((hazard.type as string)||"").charAt(0).toUpperCase()}</Text>
                           <Text style={{ ...s.td, width: 120, fontFamily: oh.isSignificant ? "Helvetica-Bold" : "Helvetica" }}>{hazard.name as string}</Text>
                           <Text style={{ ...s.td, width: 28 }}>{sev||"—"}</Text>
@@ -1180,7 +1180,7 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
               const corrective: any[] = ccp.correctiveActions ?? [];
               const verification: any[] = ccp.verificationProcedures ?? [];
               return (
-                <View key={ci} style={{ marginBottom: 14, borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 4 }}>
+                <View key={ci} wrap={false} style={{ marginBottom: 14, borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 4 }}>
                   <View style={{ backgroundColor: "#fee2e2", paddingHorizontal: 8, paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: "#fca5a5" }}>
                     <Text style={{ fontSize: 9, fontFamily: "Helvetica-Bold", color: "#991b1b" }}>{source as string}</Text>
                     <Text style={{ fontSize: 7, color: "#7f1d1d" }}>{ccp.hazardDescription as string}</Text>
@@ -1250,7 +1250,7 @@ export function PdfHaccpPlan({ snapshot }: { snapshot: any }) {
               ))}
             </View>
             {teamMembers.map((m: Record<string, string>, i: number) => (
-              <View key={i} style={s.tableRow}>
+              <View key={i} wrap={false} style={s.tableRow}>
                 <Text style={{ ...s.td, flex: 1 }}>{m.name}</Text>
                 <Text style={{ ...s.td, flex: 1 }}>{m.title}</Text>
                 <Text style={{ ...s.td, flex: 1 }}>{m.role}</Text>
