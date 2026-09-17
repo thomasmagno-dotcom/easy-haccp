@@ -85,31 +85,34 @@ export function PdfForms59({ rows }: { rows: HazardSummaryRow[] }) {
 
   return (
     <View style={{ borderWidth: 1, borderColor: "#d1d5db" }}>
-      {/* Group headers */}
-      <View wrap={false} style={{ flexDirection: "row", backgroundColor: "#e9ecef", borderBottomWidth: 1, borderBottomColor: "#9ca3af" }}>
-        {/* Empty spacer for cols 1-5 */}
-        <View style={{ width: COLS[0].width + COLS[1].width + COLS[2].width + COLS[3].width + COLS[4].width, borderRightWidth: 1, borderRightColor: "#9ca3af" }} />
-        {/* Without controls */}
-        <View style={{ width: COLS[5].width + COLS[6].width + COLS[7].width, borderRightWidth: 1, borderRightColor: "#9ca3af", paddingVertical: 2, paddingHorizontal: 3 }}>
-          <Text style={{ fontSize: 6, fontFamily: "Helvetica-Bold", color: "#dc2626" }}>Risk Without Controls</Text>
+      {/* Header block — fixed so it repeats at the top of every page */}
+      <View fixed>
+        {/* Group headers */}
+        <View wrap={false} style={{ flexDirection: "row", backgroundColor: "#e9ecef", borderBottomWidth: 1, borderBottomColor: "#9ca3af" }}>
+          {/* Empty spacer for cols 1-5 */}
+          <View style={{ width: COLS[0].width + COLS[1].width + COLS[2].width + COLS[3].width + COLS[4].width, borderRightWidth: 1, borderRightColor: "#9ca3af" }} />
+          {/* Without controls */}
+          <View style={{ width: COLS[5].width + COLS[6].width + COLS[7].width, borderRightWidth: 1, borderRightColor: "#9ca3af", paddingVertical: 2, paddingHorizontal: 3 }}>
+            <Text style={{ fontSize: 6, fontFamily: "Helvetica-Bold", color: "#dc2626" }}>Risk Without Controls</Text>
+          </View>
+          {/* With controls */}
+          <View style={{ width: COLS[8].width + COLS[9].width + COLS[10].width, borderRightWidth: 1, borderRightColor: "#9ca3af", paddingVertical: 2, paddingHorizontal: 3 }}>
+            <Text style={{ fontSize: 6, fontFamily: "Helvetica-Bold", color: "#15803d" }}>Risk With Controls</Text>
+          </View>
+          {/* Empty spacer for remaining cols */}
+          <View style={{ flex: 1 }} />
         </View>
-        {/* With controls */}
-        <View style={{ width: COLS[8].width + COLS[9].width + COLS[10].width, borderRightWidth: 1, borderRightColor: "#9ca3af", paddingVertical: 2, paddingHorizontal: 3 }}>
-          <Text style={{ fontSize: 6, fontFamily: "Helvetica-Bold", color: "#15803d" }}>Risk With Controls</Text>
-        </View>
-        {/* Empty spacer for remaining cols */}
-        <View style={{ flex: 1 }} />
-      </View>
 
-      {/* Column headers */}
-      <View wrap={false} style={{ flexDirection: "row", backgroundColor: "#f3f4f6", borderBottomWidth: 1, borderBottomColor: "#9ca3af" }}>
-        {COLS.map((col) => (
-          <Cell key={col.label} width={col.width}>
-            <Text style={{ fontSize: 6.5, fontFamily: "Helvetica-Bold", color: "#374151" }}>
-              {col.label}
-            </Text>
-          </Cell>
-        ))}
+        {/* Column headers */}
+        <View wrap={false} style={{ flexDirection: "row", backgroundColor: "#f3f4f6", borderBottomWidth: 1, borderBottomColor: "#9ca3af" }}>
+          {COLS.map((col) => (
+            <Cell key={col.label} width={col.width}>
+              <Text style={{ fontSize: 6.5, fontFamily: "Helvetica-Bold", color: "#374151" }}>
+                {col.label}
+              </Text>
+            </Cell>
+          ))}
+        </View>
       </View>
 
       {/* Data rows */}
